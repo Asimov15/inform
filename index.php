@@ -8,6 +8,7 @@
 // 15/08/2018 Added Silver
 
 ?>
+
 <!DOCTYPE html PUBLIC '-//W3C//DTD XHTML 1.0 Strict//EN' 'http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd'>
 <html xmlns='http://www.w3.org/1999/xhtml' xml:lang='en'>
 	<head>		
@@ -20,7 +21,79 @@
     <body>
         <h1>Information</h1>
         <div id="wrapper">
-            <?php 
+            <?php
+            
+                function ip_info($ip = NULL, $purpose = "location", $deep_detect = TRUE) 
+                {
+                    $output = NULL;
+                    if (filter_var($ip, FILTER_VALIDATE_IP) === FALSE) 
+                    {
+                        $ip = $_SERVER["REMOTE_ADDR"];
+                        if ($deep_detect) 
+                        {
+                            if (filter_var(@$_SERVER['HTTP_X_FORWARDED_FOR'], FILTER_VALIDATE_IP))
+                                $ip = $_SERVER['HTTP_X_FORWARDED_FOR'];
+                            if (filter_var(@$_SERVER['HTTP_CLIENT_IP'], FILTER_VALIDATE_IP))
+                                $ip = $_SERVER['HTTP_CLIENT_IP'];
+                        }
+                    }
+                    $purpose    = str_replace(array("name", "\n", "\t", " ", "-", "_"), NULL, strtolower(trim($purpose)));
+                    $support    = array("country", "countrycode", "state", "region", "city", "location", "address");
+                    $continents = array(
+                        "AF" => "Africa",
+                        "AN" => "Antarctica",
+                        "AS" => "Asia",
+                        "EU" => "Europe",
+                        "OC" => "Australia (Oceania)",
+                        "NA" => "North America",
+                        "SA" => "South America"
+                    );
+                    if (filter_var($ip, FILTER_VALIDATE_IP) && in_array($purpose, $support)) 
+                    {
+                        $ipdat = @json_decode(file_get_contents("http://www.geoplugin.net/json.gp?ip=" . $ip));
+                        if (@strlen(trim($ipdat->geoplugin_countryCode)) == 2) 
+                        {
+                            switch ($purpose) 
+                            {
+                                case "location":
+                                    $output = array(
+                                        "city"           => @$ipdat->geoplugin_city,
+                                        "state"          => @$ipdat->geoplugin_regionName,
+                                        "country"        => @$ipdat->geoplugin_countryName,
+                                        "country_code"   => @$ipdat->geoplugin_countryCode,
+                                        "continent"      => @$continents[strtoupper($ipdat->geoplugin_continentCode)],
+                                        "continent_code" => @$ipdat->geoplugin_continentCode
+                                    );
+                                    break;
+                                case "address":
+                                    $address = array($ipdat->geoplugin_countryName);
+                                    if (@strlen($ipdat->geoplugin_regionName) >= 1)
+                                        $address[] = $ipdat->geoplugin_regionName;
+                                    if (@strlen($ipdat->geoplugin_city) >= 1)
+                                        $address[] = $ipdat->geoplugin_city;
+                                    $output = implode(", ", array_reverse($address));
+                                    break;
+                                case "city":
+                                    $output = @$ipdat->geoplugin_city;
+                                    break;
+                                case "state":
+                                    $output = @$ipdat->geoplugin_regionName;
+                                    break;
+                                case "region":
+                                    $output = @$ipdat->geoplugin_regionName;
+                                    break;
+                                case "country":
+                                    $output = @$ipdat->geoplugin_countryName;
+                                    break;
+                                case "countrycode":
+                                    $output = @$ipdat->geoplugin_countryCode;
+                                    break;
+                            }
+                        }
+                    }
+                    return $output;
+                }
+                
                 function CallAPI($method, $url, $data = false, $key = false)
                 // method: html request method
                 // url: the web address
@@ -129,8 +202,6 @@
                 $params->end_date = "2018-08-14";            
                 $params->access_key = $api_key;
                 $json = CallAPI('GET', 'https://www.quandl.com/api/v3/datasets/LBMA/SILVER', $params , false);
-                
-                //echo($json);
                 
                 $silver_data = json_decode($json, TRUE);
                 
@@ -252,8 +323,6 @@
                 echo('              <span class="commod2">' . money_format('%7.2i', $silver_aud  ) . '</span>' . PHP_EOL);
                 echo('              <span class="commod2">' . money_format('%7.2i', $silver_aud   * $kg_factor) . '</span>' . PHP_EOL);
             
-            //    echo('              <span class="commod">Gold  : ' . money_format('%7.2i', $gold_aud  ) . ' ' . money_format('%7.2i', $gold_aud   * $kg_factor) . '</span>' . PHP_EOL);
-            //    echo('              <span class="commod">Silver: ' . money_format('%7.2i', $silver_aud) . ' ' . money_format('%7.2i', $silver_aud * $kg_factor) . '</span>' . PHP_EOL);   
                 echo(PHP_EOL);
                 echo('          </div>' . PHP_EOL);
                 echo('      </div><!-- end //outer3 -->' . PHP_EOL);
@@ -284,6 +353,40 @@
                 echo('          </div>' . PHP_EOL);            
                 echo('      </div>' . PHP_EOL);
                 echo('  </div>' . PHP_EOL);
+                
+                $servername = "127.0.0.1";
+                $username = "julius";
+                $password = "happy1";
+                $dbname = "rome";
+
+                // Create connection
+                $conn = new mysqli($servername, $username, $password, $dbname);
+                // Check connection
+                if ($conn->connect_error) 
+                {
+                    die("Connection failed: " . $conn->connect_error);
+                }  
+                
+                $ip = $_SERVER['REMOTE_ADDR'];
+                if (strlen($ip) <= 0)
+                    $ip = $_SERVER['HTTP_X_FORWARDED_FOR'];
+                    
+                
+                $now = date('Y-m-d H:i:s');                
+                $sql = "INSERT INTO palatine (country, time_access, remote_addr, http_x_forwarded_for) VALUES
+                 ('" . ip_info($ip, 'Country') . "', '" . $now . "', '" .
+                 $_SERVER['REMOTE_ADDR'] . "', '" . $_SERVER['HTTP_X_FORWARDED_FOR'] . "')";
+
+                if ($conn->query($sql) === TRUE) 
+                {
+                    echo "New record created successfully.";
+                } 
+                else 
+                {
+                    echo "Error: " . $sql . "<br>" . $conn->error;
+                }
+
+                $conn->close();
             ?>
         </div> <!-- end //wrapper -->
     </body>
