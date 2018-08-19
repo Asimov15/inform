@@ -14,15 +14,14 @@
 	<head>		
         <meta http-equiv="Content-Type" content="text/html;charset=utf-8"/>
         <meta http-equiv="refresh" content="1200"/>
-        <link rel="stylesheet" type="text/css" href="inform.css"/>
+        <link rel="stylesheet" type="text/css" href="inform.css?version=1.4"/>
 		<title>David's Information</title>           		
 	</head>	 
 
     <body>
-        <h1>Information</h1>
+        <h1>David's Information</h1>
         <div id="wrapper">
-            <?php
-            
+            <?php            
                 function ip_info($ip = NULL, $purpose = "location", $deep_detect = TRUE) 
                 {
                     $output = NULL;
@@ -134,7 +133,7 @@
                     curl_setopt($curl, CURLOPT_USERPWD, '');
 
                     curl_setopt($curl, CURLOPT_URL, $url);
-                    curl_setopt($curl, CURLOPT_RETURNTRANSFER, 1);                
+                    curl_setopt($curl, CURLOPT_RETURNTRANSFER, 1);
 
                     $result = curl_exec($curl);
                    
@@ -184,7 +183,7 @@
                 $btc_eth = $data_poloniex["BTC_ETH"]["last"];
                 $aud_eth = $btc_eth * $btc_price_aud;
                 
-                // Commodities
+                // Precious Metals
                 // Gold
                 
                 $kg_factor = 32.1507;
@@ -196,163 +195,227 @@
                 
                 // Silver 
                 // Get newest date
-                $api_key = "SBPYxUYb_hz32nKxtqGU"; 
-                $params = new \stdClass();            
-                $params->start_date = "2018-08-14";
-                $params->end_date = "2018-08-14";            
+                //$api_key = "SBPYxUYb_hz32nKxtqGU"; 
+                //$params = new \stdClass();            
+                //$params->start_date = "2018-08-14";
+                //$params->end_date = "2018-08-14";            
+                //$params->access_key = $api_key;
+                //$json = CallAPI('GET', 'https://www.quandl.com/api/v3/datasets/LBMA/SILVER', $params , false);
+                
+                //$silver_data = json_decode($json, TRUE);
+                
+                //// Get Current Price                
+                //$params->start_date = $silver_data["dataset"]["newest_available_date"];
+                //$params->end_date   = $silver_data["dataset"]["newest_available_date"];            
+                //$params->access_key = $api_key;
+                //$json = CallAPI('GET', 'https://www.quandl.com/api/v3/datasets/LBMA/SILVER', $params , false);
+                //$silver_data = json_decode($json, TRUE);
+                //$silver_aud = $silver_data["dataset"]["data"][0][1] / $usdaud;                    
+                
+                $api_key = "46546c6b-ea03-43e7-9a64-dbf6386f3dd7";           
+                $denoti_url = "http://api.denoti.com/api/finance/commodity/silver_comex/last";
+                $params = new \stdClass();  
                 $params->access_key = $api_key;
-                $json = CallAPI('GET', 'https://www.quandl.com/api/v3/datasets/LBMA/SILVER', $params , false);
-                
+                $json = CallAPI('GET', $denoti_url , $params , false);
+                // echo($json);
                 $silver_data = json_decode($json, TRUE);
+                $limit_exceeded = false;                            
+                if ($silver_data["status"] == "403")
+                {
+                    $limit_exceeded = true;
+                }
+                else
+                {
+                    $temp = $silver_data["data"];              
+                    $silver_aud = $temp[0]["value"] / $usdaud;
+                    
+                    // Brent Crude
+                    $denoti_url = "http://api.denoti.com/api/finance/commodity/brent_crude_ice/last";
+                    $json = CallAPI('GET', $denoti_url , $params , false);
+                    $brent_data = json_decode($json, TRUE);                            
+                    $temp = $brent_data["data"];              
+                    $brent = $temp[0]["value"];             
+                }
                 
-                // Get Current Price                
-                $params->start_date = $silver_data["dataset"]["newest_available_date"];
-                $params->end_date   = $silver_data["dataset"]["newest_available_date"];            
-                $params->access_key = $api_key;
-                $json = CallAPI('GET', 'https://www.quandl.com/api/v3/datasets/LBMA/SILVER', $params , false);
-                $silver_data = json_decode($json, TRUE);
-                $silver_aud = $silver_data["dataset"]["data"][0][1] / $usdaud;
-               
-                echo(PHP_EOL);
-                echo('      <div id="outer1">' . PHP_EOL);
-                echo('          <div class="box1">'. PHP_EOL);
-                echo('              <h2>' . PHP_EOL);
                 
-                // Timezones
-                echo('                  World Clock' . PHP_EOL);
-                echo('              </h2>' . PHP_EOL);                                  
                 
-                $time = date("H:i");                  
-                echo('              <span class="time"><span class="home">Melbourne</span></span>' . PHP_EOL);
-                echo('              <span class="timed"><span class="home">' . $time . '</span></span>' . PHP_EOL);                        
+                echo('            <div id="outer1">' . PHP_EOL); 
+                
+                // Timezones                
+                $time = date("H:i");  
                 $time2 = new DateTime($time);
-                echo('              <br/>' . PHP_EOL);
-                
-                echo('              <span class="time">Jakata</span>' . PHP_EOL);        
+                echo('                <div class="box1">'. PHP_EOL);
+                echo('                    <h2>World Clock</h2>' . PHP_EOL);                
+                echo('                    <span class="time"><span class="home">Melbourne</span></span>' . PHP_EOL);
+                echo('                    <span class="timed"><span class="home">' . $time . '</span></span>' . PHP_EOL);                
+                echo('                    <br/>' . PHP_EOL);
+                                
+                echo('                    <span class="time">Jakata</span>' . PHP_EOL);        
                 $time2 = $time2->setTimeZone(new DateTimeZone("Asia/Jakarta"));   
-                echo('              <span class="timed">' . $time2->format("H:i") . '</span>' . PHP_EOL);
-                echo('              <br/>' . PHP_EOL);
+                echo('                    <span class="timed">' . $time2->format("H:i") . '</span>' . PHP_EOL);
+                echo('                    <br/>' . PHP_EOL);
                 
-                echo('              <span class="time">Johannesburg</span>' . PHP_EOL);        
+                echo('                    <span class="time">Johannesburg</span>' . PHP_EOL);        
                 $time2 = $time2->setTimeZone(new DateTimeZone("Africa/Johannesburg"));   
-                echo('              <span class="timed">' . $time2->format("H:i") . '</span>' . PHP_EOL);
-                echo('              <br/>' . PHP_EOL);
+                echo('                    <span class="timed">' . $time2->format("H:i") . '</span>' . PHP_EOL);
+                echo('                    <br/>' . PHP_EOL);
                 
-                echo('              <span class="time">London</span>' . PHP_EOL);                
+                echo('                    <span class="time">London</span>' . PHP_EOL);                
                 $time2 = $time2->setTimeZone(new DateTimeZone("Europe/London"));           
-                echo('              <span class="timed">' . $time2->format("H:i") . '</span>' . PHP_EOL);
-                echo('              <br/>' . PHP_EOL);
+                echo('                    <span class="timed">' . $time2->format("H:i") . '</span>' . PHP_EOL);
+                echo('                    <br/>' . PHP_EOL);
                 
-                echo('              <span class="time">Los Angeles</span>' . PHP_EOL);        
+                echo('                    <span class="time">Los Angeles</span>' . PHP_EOL);        
                 $time2 = $time2->setTimeZone(new DateTimeZone("America/Los_Angeles"));   
-                echo('              <span class="timed">' . $time2->format("H:i") . '</span>' . PHP_EOL);
-                echo('              <br/>' . PHP_EOL);
+                echo('                    <span class="timed">' . $time2->format("H:i") . '</span>' . PHP_EOL);
+                echo('                    <br/>' . PHP_EOL);
                 
-                echo('              <span class="time">Moscow</span>' . PHP_EOL);                
+                echo('                    <span class="time">Moscow</span>' . PHP_EOL);                
                 $time2 = $time2->setTimeZone(new DateTimeZone("Europe/Moscow"));           
-                echo('              <span class="timed">' . $time2->format("H:i") . '</span>' . PHP_EOL);
-                echo('              <br/>' . PHP_EOL);
+                echo('                    <span class="timed">' . $time2->format("H:i") . '</span>' . PHP_EOL);
+                echo('                    <br/>' . PHP_EOL);
                 
-                echo('              <span class="time">New Dehli</span>' . PHP_EOL);                
+                echo('                    <span class="time">New Dehli</span>' . PHP_EOL);                
                 $time2 = $time2->setTimeZone(new DateTimeZone("Asia/Kolkata"));           
-                echo('              <span class="timed">' . $time2->format("H:i") . '</span>' . PHP_EOL);
-                echo('              <br/>' . PHP_EOL);
+                echo('                    <span class="timed">' . $time2->format("H:i") . '</span>' . PHP_EOL);
+                echo('                    <br/>' . PHP_EOL);
                 
-                echo('              <span class="time">New York</span>' . PHP_EOL);        
+                echo('                    <span class="time">New York</span>' . PHP_EOL);        
                 $time2 = $time2->setTimeZone(new DateTimeZone("America/New_York"));   
-                echo('              <span class="timed">' . $time2->format("H:i") . '</span>' . PHP_EOL);
-                echo('              <br/>' . PHP_EOL);
+                echo('                    <span class="timed">' . $time2->format("H:i") . '</span>' . PHP_EOL);
+                echo('                    <br/>' . PHP_EOL);
                 
-                echo('              <span class="time">Rome</span>' . PHP_EOL);   
+                echo('                    <span class="time">Rome</span>' . PHP_EOL);   
                 $time2 = $time2->setTimeZone(new DateTimeZone("Europe/Rome"));
-                echo('              <span class="timed">' . $time2->format("H:i") . '</span>' . PHP_EOL);
-                echo('              <br/>' . PHP_EOL);
+                echo('                    <span class="timed">' . $time2->format("H:i") . '</span>' . PHP_EOL);
+                echo('                    <br/>' . PHP_EOL);
                 
-                echo('              <span class="time">Shanghai</span>' . PHP_EOL);        
+                echo('                    <span class="time">Shanghai</span>' . PHP_EOL);        
                 $time2 = $time2->setTimeZone(new DateTimeZone("Asia/Shanghai"));   
-                echo('              <span class="timed">' . $time2->format("H:i") . '</span>' . PHP_EOL);
-                echo('              <br/>' . PHP_EOL);
+                echo('                    <span class="timed">' . $time2->format("H:i") . '</span>' . PHP_EOL);
+                echo('                    <br/>' . PHP_EOL);
                 
-                echo('          </div>' . PHP_EOL);
-                echo('      </div><!-- end //outer1 -->' . PHP_EOL);
+                echo('                </div>' . PHP_EOL);
+                echo('            </div><!-- end //outer1 -->' . PHP_EOL);
                 
                 // Crypto
-                echo('      <div id="outer2">' . PHP_EOL);
-                echo('          <div class="box1">' . PHP_EOL);
-                echo('              <h2>' . PHP_EOL);
-                echo('                  Cryptocurrency Prices ($AUD)' . PHP_EOL);
-                echo('              </h2>' . PHP_EOL);
+                echo('            <div id="outer2">' . PHP_EOL);
+                echo('                <div class="box1">' . PHP_EOL);
+                echo('                    <h2>' . PHP_EOL);
+                echo('                        Crypto ($AUD)' . PHP_EOL);
+                echo('                    </h2>' . PHP_EOL);
                 
                 // BTC
-                echo('              <span class="crypto">BTC:</span>');
-                echo('              <span class="cryptod">' . money_format('%9.2i', $btc_price_aud) . '&nbsp;&nbsp;&nbsp;&nbsp;</span>');
-                echo('              <br/>' . PHP_EOL);
+                echo('                    <span class="crypto">BTC:</span>');
+                echo(PHP_EOL);
+                echo('                    <span class="cryptod">' . money_format('%9.2i', $btc_price_aud) . '&nbsp;&nbsp;&nbsp;&nbsp;</span>');
+                echo(PHP_EOL);
+                echo('                    <br/>' . PHP_EOL);
                 
                 //GRC
-                echo('              <span class="crypto">GRC:</span>');
-                echo('              <span class="cryptod">' . money_format('%9.6i', $aud_grc) . '</span>');
-                echo('              <br/>' . PHP_EOL);
+                echo('                    <span class="crypto">GRC:</span>');
+                echo(PHP_EOL);
+                echo('                    <span class="cryptod">' . money_format('%9.6i', $aud_grc) . '</span>');
+                echo(PHP_EOL);
+                echo('                    <br/>' . PHP_EOL);
                 
                 //BCH
-                echo('              <span class="crypto">BCH:</span>');
-                echo('              <span class="cryptod">' . money_format('%9.2i', $aud_bch) . '&nbsp;&nbsp;&nbsp;&nbsp;</span>');
-                echo('              <br/>' . PHP_EOL);
+                echo('                    <span class="crypto">BCH:</span>');
+                echo(PHP_EOL);
+                echo('                    <span class="cryptod">' . money_format('%9.2i', $aud_bch) . '&nbsp;&nbsp;&nbsp;&nbsp;</span>');
+                echo(PHP_EOL);
+                echo('                    <br/>' . PHP_EOL);
                 
                 //ETH
-                echo('              <span class="crypto">ETH:</span>');
-                echo('              <span class="cryptod">' . money_format('%9.2i', $aud_eth) . '&nbsp;&nbsp;&nbsp;&nbsp;</span>');
-                echo('              <br/>' . PHP_EOL);
-                
-                echo('          </div><!-- end box1 -->' . PHP_EOL); 
-                echo('      </div><!-- end //outer2 -->' . PHP_EOL);
-                
-                // Commodities
-                echo('      <div id="outer3">' . PHP_EOL);
-                echo('          <div class="box1">' . PHP_EOL);
-                echo('          <h2>' . PHP_EOL);
-                echo('              Commodities ($AUD / oz, kg)' . PHP_EOL);
-                echo('          </h2>' . PHP_EOL);           
-                
-                echo('              <span class="commod1">Gold  : </span>'  . PHP_EOL);
-                echo('              <span class="commod2">' . money_format('%7.2i', $gold_aud  ) . '</span>' . PHP_EOL);
-                echo('              <span class="commod2">' . money_format('%7.2i', $gold_aud   * $kg_factor) . '</span>' . PHP_EOL);
-                
-                echo('<br/>');
-                
-                echo('              <span class="commod1">Silver: </span>'  . PHP_EOL);
-                echo('              <span class="commod2">' . money_format('%7.2i', $silver_aud  ) . '</span>' . PHP_EOL);
-                echo('              <span class="commod2">' . money_format('%7.2i', $silver_aud   * $kg_factor) . '</span>' . PHP_EOL);
-            
+                echo('                    <span class="crypto">ETH:</span>');
                 echo(PHP_EOL);
-                echo('          </div>' . PHP_EOL);
-                echo('      </div><!-- end //outer3 -->' . PHP_EOL);
+                echo('                    <span class="cryptod">' . money_format('%9.2i', $aud_eth) . '&nbsp;&nbsp;&nbsp;&nbsp;</span>');
+                echo(PHP_EOL);
+                echo('                    <br/>' . PHP_EOL);
+                
+                echo('                </div><!-- end box1 -->' . PHP_EOL); 
+                echo('            </div><!-- end //outer2 -->' . PHP_EOL);
+                
+                // Precious Metals
+                echo('            <div id="outer3">' . PHP_EOL);
+                echo('                <div class="box1">' . PHP_EOL);
+                echo('                <h2>' . PHP_EOL);
+                echo('                    Precious Metals ($AUD)');
+                echo('                </h2>' . PHP_EOL);
+                echo('                    <span class="pmhead1">Troy Ounce</span>'  . PHP_EOL);
+                echo('                    <span class="pmhead2">Kilogram</span>'  . PHP_EOL);
+                echo('                    <br/>' . PHP_EOL);
+                
+                echo('                    <span class="precious1">Gold:</span>'  . PHP_EOL);
+                echo('                    <span class="precious2">' . money_format('%7.2i', $gold_aud  ) . '</span>' . PHP_EOL);
+                echo('                    <span class="precious3">' . money_format('%7.2i', $gold_aud   * $kg_factor) . '</span>' . PHP_EOL); 
+                echo('                    <br/>' . PHP_EOL);               
+                echo('                    <span class="precious1">Silver:</span>'  . PHP_EOL);
+                
+                if ($limit_exceeded)
+                {
+                    $silver_out_oz = "Limit Exceeded";
+                    $silver_out_kg = "Limit Exceeded";
+                }
+                else
+                {
+                    $silver_out_oz =  money_format('%7.2i', $silver_aud);
+                    $silver_out_kg =  money_format('%7.2i', $silver_aud * $kg_factor);
+                }
+                echo('                    <span class="precious2">' . $silver_out_oz . '</span>' . PHP_EOL);
+                echo('                    <span class="precious3">' . $silver_out_kg . '</span>' . PHP_EOL);
+                
+                echo('                    <br/>' . PHP_EOL);       
+                
+                echo('                </div>' . PHP_EOL);
+                echo('            </div><!-- end //outer3 -->' . PHP_EOL);
                 
                 // Forex
-                echo('      <div id="outer4">' . PHP_EOL);
-                echo('          <div class="box1">' . PHP_EOL);            
-                echo('          <h2>' . PHP_EOL);
-                echo('              FOREX ($AUD)' . PHP_EOL);
-                echo('          </h2>' . PHP_EOL);
-                echo('              <span class="time">USD: ' . money_format('%2.5i', $usdaud) . '</span>' . PHP_EOL);
-                echo('              <br/>' . PHP_EOL);   
-                echo('              <span class="time">EUR: ' . money_format('%2.5i', $euraud) . '</span>' . PHP_EOL);   
-                echo('              <br/>' . PHP_EOL);   
-                echo('              <span class="time">GBP: ' . money_format('%2.5i', $gbpaud) . '</span>' . PHP_EOL);   
-                echo('              <br/>' . PHP_EOL);   
-                echo('          </div>' . PHP_EOL);
-                echo('      </div><!-- end //outer4 -->' . PHP_EOL);
-                echo('      <div id="footer">' . PHP_EOL);
-                echo('      <div class="box2">' . PHP_EOL);
-                echo('          <div class="footer2">' . PHP_EOL);
-                echo('              <p>Powered by <a href="https://www.coindesk.com/price/">CoinDesk</a></p>' . PHP_EOL);
-                echo('              <a href="http://goldpricez.com">Gold rates by <img alt="Gold Price Data" src="http://goldpricez.com/assets/logo.jpg" height="20"/></a>' . PHP_EOL);            
-                echo('              <br/>' . PHP_EOL);  
-                echo('    	        <a href="http://jigsaw.w3.org/css-validator/check/referer"><img style="border:0;width:89px;height:31px" src="http://jigsaw.w3.org/css-validator/images/vcss" alt="Valid CSS!" /></a>' . PHP_EOL);
-                echo('              <br/>' . PHP_EOL);  
-                echo('	   	        <a href="http://validator.w3.org/check?uri=referer"><img src="http://www.w3.org/Icons/valid-xhtml10" alt="Valid XHTML 1.0 Strict" height="31" width="89" /></a>' . PHP_EOL);       
-                echo('          </div>' . PHP_EOL);            
-                echo('      </div>' . PHP_EOL);
-                echo('  </div>' . PHP_EOL);
+                echo('            <div id="outer4">' . PHP_EOL);
+                echo('                <div class="box1">' . PHP_EOL);            
+                echo('                <h2>' . PHP_EOL);
+                echo('                    FOREX ($AUD)' . PHP_EOL);
+                echo('                </h2>' . PHP_EOL);
+                echo('                    <span class="time">USD: ' . money_format('%2.5i', $usdaud) . '</span>' . PHP_EOL);
+                echo('                    <br/>' . PHP_EOL);   
+                echo('                    <span class="time">EUR: ' . money_format('%2.5i', $euraud) . '</span>' . PHP_EOL);   
+                echo('                    <br/>' . PHP_EOL);   
+                echo('                    <span class="time">GBP: ' . money_format('%2.5i', $gbpaud) . '</span>' . PHP_EOL);   
+                echo('                    <br/>' . PHP_EOL);   
+                echo('                </div>' . PHP_EOL);
+                echo('            </div><!-- end //outer4 -->' . PHP_EOL);
+                
+                // Commodities
+                echo('            <div id="outer5">' . PHP_EOL);
+                echo('                <div class="box1">' . PHP_EOL);            
+                echo('                <h2>' . PHP_EOL);
+                echo('                    Commodities ($US)' . PHP_EOL);
+                echo('                </h2>' . PHP_EOL);
+                echo('                    <span class="commod1">Brent Crude: </span>'  . PHP_EOL);
+                
+                if ($limit_exceeded)
+                {
+                    $brent_out = "Limit Exceeded";                    
+                }
+                else
+                {
+                    $brent_out    =  money_format('%7.2i', $brent);                    
+                }
+                
+                echo('                    <span class="commod2">' . $brent_out . '</span>' . PHP_EOL);               
+                echo('                    <br/>' . PHP_EOL);                
+                echo('                </div>' . PHP_EOL);
+                echo('            </div><!-- end //outer4 -->' . PHP_EOL);
+                echo('            <div id="footer">' . PHP_EOL);
+                echo('            <div class="box2">' . PHP_EOL);
+                echo('                <div class="footer2">' . PHP_EOL);
+                echo('                    <span>Powered by <a href="https://www.coindesk.com/price/">CoinDesk</a></span>' . PHP_EOL);
+                echo('                    <a href="http://goldpricez.com">Gold rates by <img alt="Gold Price Data" src="http://goldpricez.com/assets/logo.jpg" height="20"/></a>' . PHP_EOL);            
+                echo('          	      <a href="http://jigsaw.w3.org/css-validator/check/referer"><img style="border:0;width:89px;height:31px" src="http://jigsaw.w3.org/css-validator/images/vcss" alt="Valid CSS!" /></a>' . PHP_EOL);                
+                echo('      	   	      <a href="http://validator.w3.org/check?uri=referer"><img src="http://www.w3.org/Icons/valid-xhtml10" alt="Valid XHTML 1.0 Strict" height="31" width="89" /></a>' . PHP_EOL);       
+                echo('                </div>' . PHP_EOL);            
+                echo('            </div>' . PHP_EOL);
+                echo('        </div>' . PHP_EOL);
                 
                 $servername = "127.0.0.1";
                 $username = "julius";
@@ -361,25 +424,32 @@
 
                 // Create connection
                 $conn = new mysqli($servername, $username, $password, $dbname);
+                
                 // Check connection
                 if ($conn->connect_error) 
                 {
                     die("Connection failed: " . $conn->connect_error);
                 }  
-                
-                $ip = $_SERVER['REMOTE_ADDR'];
-                if (strlen($ip) <= 0)
-                    $ip = $_SERVER['HTTP_X_FORWARDED_FOR'];
                     
+                $country = ip_info($_SERVER['REMOTE_ADDR'], 'country');
+                $address = ip_info($_SERVER['REMOTE_ADDR'], 'address');
+                $city    = ip_info($_SERVER['REMOTE_ADDR'], 'city');
+                $state   = ip_info($_SERVER['REMOTE_ADDR'], 'state');
+                $region  = ip_info($_SERVER['REMOTE_ADDR'], 'region');
+                
+                if (strlen($country) <= 0)
+                    $country = ip_info($_SERVER['HTTP_X_FORWARDED_FOR'], 'Country') ;                   
                 
                 $now = date('Y-m-d H:i:s');                
-                $sql = "INSERT INTO palatine (country, time_access, remote_addr, http_x_forwarded_for) VALUES
-                 ('" . ip_info($ip, 'Country') . "', '" . $now . "', '" .
-                 $_SERVER['REMOTE_ADDR'] . "', '" . $_SERVER['HTTP_X_FORWARDED_FOR'] . "')";
+                $sql = "INSERT INTO palatine 
+                        (time_access, remote_addr, http_x_forwarded_for, address, city, state, region, country) VALUES
+                        ('" .   $now     . "', '" . $_SERVER['REMOTE_ADDR'] . "', '" . $_SERVER['HTTP_X_FORWARDED_FOR'] . "', '" . 
+                                $address . "', '" . $city                   . "', '" . $state . "', '" . 
+                                $region  . "', '" . $country . "')";
 
                 if ($conn->query($sql) === TRUE) 
                 {
-                    echo "New record created successfully.";
+                    echo(PHP_EOL);
                 } 
                 else 
                 {

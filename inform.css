@@ -1,30 +1,36 @@
 #outer1
 {
     float: left; 
-    width: 25%;
+    width: 20%;
     margin-right: 0px;
 }
 
 #outer2 
 {   float: left; 
-    width: 25%; 
+    width: 17%; 
     margin-right: 0px;
 }
 
 #outer3
 {   float: left; 
-    width: 25%;
+    width: 26%;
     /* border: 5px solid black; */
 }
 
 #outer4
+{   float: left; 
+    width: 14%;
+    /* border: 5px solid black; */
+}
+
+#outer5
 {
     float: right; 
-    width: 25%;
+    width: 23%;
     /* border: 5px solid blue; */
 }
 
-#outer1, #outer2, #outer3
+#outer1, #outer2, #outer3, #outer4
 {
     padding-bottom: 32767px; 
     margin-bottom: -32767px;    
@@ -160,7 +166,53 @@ span.timed
 	font-size: 20px;
 }
 
+span.pmhead1
+{
+	text-align: left;
+	padding: 0px;
+	margin-left:  140px;
+	font-family: Arial,Helvetica Neue,Helvetica,sans-serif; 
+	font-size: 20px;
+	width: 110px;
+	display: inline-block;
+}
+
+span.pmhead2
+{
+	text-align: left;
+	padding: 0px;
+	margin-left:  60px;
+	font-family: Arial,Helvetica Neue,Helvetica,sans-serif; 
+	font-size: 20px;
+	width: 110px;
+	display: inline-block;
+}
+
 span.commod1
+{
+	/* border: 2px solid green; */
+	text-align: left;
+	padding: 0px;
+	margin:  0px;
+	font-family: Arial,Helvetica Neue,Helvetica,sans-serif; 
+	font-size: 20px;
+	width: 120px;
+	display: inline-block;	
+}
+
+span.commod2
+{
+	/* border: 2px solid blue; */
+	text-align: right;
+	padding: 0px;
+	margin:  0px;
+	font-family: "Lucida Console", Monaco, monospace; 
+	font-size: 20px;
+	width: 180px;
+	display: inline-block;
+}
+
+span.precious1
 {
 	text-align: left;
 	padding: 0px;
@@ -171,28 +223,28 @@ span.commod1
 	display: inline-block;
 }
 
-span.commod2
+span.precious2
 {
+	/* border: 2px solid blue; */
 	text-align: right;
 	padding: 0px;
 	margin:  0px;
-	font-family: Arial,Helvetica Neue,Helvetica,sans-serif; 
+	font-family: "Lucida Console", Monaco, monospace; 
 	font-size: 20px;
-	width: 90px;
+	width: 175px;
 	display: inline-block;
 }
 
-span.commod3
+span.precious3
 {
 	text-align: right;
 	padding: 0px;
-	margin:  0px;
-	font-family: Arial,Helvetica Neue,Helvetica,sans-serif; 
+	margin-left:  5px;
+	font-family: "Lucida Console", Monaco, monospace; 
 	font-size: 20px;
-	width: 70px;
+	width: 175px;
 	display: inline-block;
 }
-
 
 span.crypto
 {
@@ -201,7 +253,7 @@ span.crypto
 	margin:  0px;
 	font-family: Arial,Helvetica Neue,Helvetica,sans-serif; 
 	font-size: 20px;
-	width: 100px;
+	width: 60px;
 	display: inline-block;
 }
 

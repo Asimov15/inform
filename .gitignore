@@ -1,3 +1,5 @@
+extract.*
+**/temp
 **/git
 **/admin
 *.sql
