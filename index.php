@@ -14,7 +14,7 @@
 	<head>		
         <meta http-equiv="Content-Type" content="text/html;charset=utf-8"/>
         <meta http-equiv="refresh" content="1200"/>
-        <link rel="stylesheet" type="text/css" href="inform.css?version=1.4"/>
+        <link rel="stylesheet" type="text/css" href="inform.css?version=1.5"/>
 		<title>David's Information</title>           		
 	</head>	 
 
@@ -168,20 +168,21 @@
                 $btc_price_aud = str_replace(",", "", $data_btc["bpi"]["AUD"]["rate"]);    
                 
                 //GRC
-                $json = CallAPI('GET', 'https://poloniex.com/public?command=returnTicker', false, false);
-                $data_poloniex = json_decode($json, TRUE);
-                $btc_grc = $data_poloniex["BTC_GRC"]["last"];
+                $json = CallAPI('GET', 'https://bittrex.com/api/v1.1/public/getticker?market=BTC-GRC', false, false);
+                $data_bittrex = json_decode($json, TRUE);
+                $btc_grc = $data_bittrex["result"]["Last"];
                 $aud_grc = $btc_grc * $btc_price_aud;
                 
-                //BCH
+                $json = CallAPI('GET', 'https://poloniex.com/public?command=returnTicker', false, false);
                 $data_poloniex = json_decode($json, TRUE);
-                $btc_bch = $data_poloniex["BTC_BCH"]["last"];
-                $aud_bch = $btc_bch * $btc_price_aud;
                 
-                //ETH
-                $data_poloniex = json_decode($json, TRUE);
+                //Dash                
+                $btc_dash = $data_poloniex["BTC_DASH"]["last"];
+                $aud_dash = $btc_dash * $btc_price_aud;
+                
+                //ETH                
                 $btc_eth = $data_poloniex["BTC_ETH"]["last"];
-                $aud_eth = $btc_eth * $btc_price_aud;
+                $aud_eth = $btc_eth * $btc_price_aud;                            
                 
                 // Precious Metals
                 // Gold
@@ -212,32 +213,95 @@
                 //$silver_data = json_decode($json, TRUE);
                 //$silver_aud = $silver_data["dataset"]["data"][0][1] / $usdaud;                    
                 
-                $api_key = "46546c6b-ea03-43e7-9a64-dbf6386f3dd7";           
-                $denoti_url = "http://api.denoti.com/api/finance/commodity/silver_comex/last";
-                $params = new \stdClass();  
-                $params->access_key = $api_key;
-                $json = CallAPI('GET', $denoti_url , $params , false);
-                // echo($json);
-                $silver_data = json_decode($json, TRUE);
-                $limit_exceeded = false;                            
-                if ($silver_data["status"] == "403")
-                {
-                    $limit_exceeded = true;
-                }
-                else
-                {
-                    $temp = $silver_data["data"];              
-                    $silver_aud = $temp[0]["value"] / $usdaud;
+                //$api_key = "46546c6b-ea03-43e7-9a64-dbf6386f3dd7";           
+                //$denoti_url = "http://api.denoti.com/api/finance/commodity/silver_comex/last";
+                //$params = new \stdClass();  
+                //$params->access_key = $api_key;
+                //$json = CallAPI('GET', $denoti_url , $params , false);
+                //// echo($json);
+                //$silver_data = json_decode($json, TRUE);
+                //$limit_exceeded = false;                            
+                //if ($silver_data["status"] == "403")
+                //{
+                    //$limit_exceeded = true;
+                //}
+                //else
+                //{
+                    //$temp = $silver_data["data"];              
+                    //$silver_aud = $temp[0]["value"] / $usdaud;
                     
-                    // Brent Crude
-                    $denoti_url = "http://api.denoti.com/api/finance/commodity/brent_crude_ice/last";
-                    $json = CallAPI('GET', $denoti_url , $params , false);
-                    $brent_data = json_decode($json, TRUE);                            
-                    $temp = $brent_data["data"];              
-                    $brent = $temp[0]["value"];             
+                    //// Brent Crude
+                    //$denoti_url = "http://api.denoti.com/api/finance/commodity/brent_crude_ice/last";
+                    //$json = CallAPI('GET', $denoti_url , $params , false);
+                    //$brent_data = json_decode($json, TRUE);                            
+                    //$temp = $brent_data["data"];              
+                    //$brent = $temp[0]["value"];             
+                //}
+                
+                shell_exec("wget -q -O /var/www/html/temp/brent.html https://markets.businessinsider.com/commodities/oil-price");
+                
+                $file = "/var/www/html/temp/brent.html";
+                $doc = new DOMDocument();
+                libxml_use_internal_errors(true);
+                $doc->loadHTMLFile($file);
+                libxml_use_internal_errors(false);
+
+                $xpath = new DOMXpath($doc);
+
+                // example 1: for everything with an id
+                //$elements = $xpath->query("//*[@id]");
+
+                // example 2: for node data in a selected id
+                //$elements = $xpath->query("/html/body/div[@id='yourTagIdHere']");
+
+                // example 3: same as above with wildcard
+                $elements = $xpath->query("//*[@id='daily-arrow-price']");
+
+                if (!is_null($elements)) 
+                {
+                    foreach ($elements as $element)
+                    { 
+                        $nodes = $element->childNodes;
+                        foreach ($nodes as $node) 
+                        {
+                            $brent_usd = $node->nodeValue;
+                        }
+                    }
                 }
                 
+                shell_exec("wget -q -O /var/www/html/temp/silver.html http://www.kitco.com/charts/livesilver.html");
+                // to retrieve selected html data, try these DomXPath examples:
+
+                $file = "/var/www/html/temp/silver.html";
+                $doc = new DOMDocument();
+                libxml_use_internal_errors(true);
+                $doc->loadHTMLFile($file);
+                libxml_use_internal_errors(false);
+
+                $xpath = new DOMXpath($doc);
+
+                // example 1: for everything with an id
+                //$elements = $xpath->query("//*[@id]");
+
+                // example 2: for node data in a selected id
+                //$elements = $xpath->query("/html/body/div[@id='yourTagIdHere']");
+
+                // example 3: same as above with wildcard
+                $elements = $xpath->query("//*[@id='sp-bid']");
+
+                if (!is_null($elements)) 
+                {
+                    foreach ($elements as $element)
+                    { 
+                        $nodes = $element->childNodes;
+                        foreach ($nodes as $node) 
+                        {
+                            $silver_us = $node->nodeValue;
+                        }
+                    }
+                }
                 
+                $silver_aud = $silver_us / $usdaud;     
                 
                 echo('            <div id="outer1">' . PHP_EOL); 
                 
@@ -320,9 +384,9 @@
                 echo('                    <br/>' . PHP_EOL);
                 
                 //BCH
-                echo('                    <span class="crypto">BCH:</span>');
+                echo('                    <span class="crypto">DASH:</span>');
                 echo(PHP_EOL);
-                echo('                    <span class="cryptod">' . money_format('%9.2i', $aud_bch) . '&nbsp;&nbsp;&nbsp;&nbsp;</span>');
+                echo('                    <span class="cryptod">' . money_format('%9.2i', $aud_dash) . '&nbsp;&nbsp;&nbsp;&nbsp;</span>');
                 echo(PHP_EOL);
                 echo('                    <br/>' . PHP_EOL);
                 
@@ -350,18 +414,11 @@
                 echo('                    <span class="precious2">' . money_format('%7.2i', $gold_aud  ) . '</span>' . PHP_EOL);
                 echo('                    <span class="precious3">' . money_format('%7.2i', $gold_aud   * $kg_factor) . '</span>' . PHP_EOL); 
                 echo('                    <br/>' . PHP_EOL);               
-                echo('                    <span class="precious1">Silver:</span>'  . PHP_EOL);
+                echo('                    <span class="precious1">Silver:</span>'  . PHP_EOL);               
+               
+                $silver_out_oz =  money_format('%7.2i', $silver_aud);
+                $silver_out_kg =  money_format('%7.2i', $silver_aud * $kg_factor);
                 
-                if ($limit_exceeded)
-                {
-                    $silver_out_oz = "Limit Exceeded";
-                    $silver_out_kg = "Limit Exceeded";
-                }
-                else
-                {
-                    $silver_out_oz =  money_format('%7.2i', $silver_aud);
-                    $silver_out_kg =  money_format('%7.2i', $silver_aud * $kg_factor);
-                }
                 echo('                    <span class="precious2">' . $silver_out_oz . '</span>' . PHP_EOL);
                 echo('                    <span class="precious3">' . $silver_out_kg . '</span>' . PHP_EOL);
                 
@@ -391,18 +448,8 @@
                 echo('                <h2>' . PHP_EOL);
                 echo('                    Commodities ($US)' . PHP_EOL);
                 echo('                </h2>' . PHP_EOL);
-                echo('                    <span class="commod1">Brent Crude: </span>'  . PHP_EOL);
-                
-                if ($limit_exceeded)
-                {
-                    $brent_out = "Limit Exceeded";                    
-                }
-                else
-                {
-                    $brent_out    =  money_format('%7.2i', $brent);                    
-                }
-                
-                echo('                    <span class="commod2">' . $brent_out . '</span>' . PHP_EOL);               
+                echo('                    <span class="commod1">Brent Crude: </span>' . PHP_EOL);                
+                echo('                    <span class="commod2">' . $brent_usd . '</span>' . PHP_EOL);               
                 echo('                    <br/>' . PHP_EOL);                
                 echo('                </div>' . PHP_EOL);
                 echo('            </div><!-- end //outer4 -->' . PHP_EOL);
