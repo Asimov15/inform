@@ -149,17 +149,22 @@
                     return $result;
                 }           
                 
+                $four_spaces = '&nbsp;&nbsp;&nbsp;&nbsp;';
+                
                 // FOREX
                 setlocale(LC_MONETARY, "en_US");
                 $FIXER_API_KEY = "b9c6a28b6be2e9bd243c14a77766ea32"; 
                 $params = new \stdClass();
                 $params->access_key = $FIXER_API_KEY;
                 $params->base = "EUR";
-                $params->symbols = "GBP,JPY,USD,AUD";            
+                $params->symbols = "GBP,JPY,USD,AUD,CHF,CAD,NZD";            
                 $json = CallAPI('GET', 'http://data.fixer.io/api/latest', $params , false);
                 $data = json_decode($json, TRUE);
                 $usdaud = $data["rates"]["USD"] / $data["rates"]["AUD"];
                 $gbpaud = $data["rates"]["GBP"] / $data["rates"]["AUD"];
+                $chfaud = $data["rates"]["CHF"] / $data["rates"]["AUD"];
+                $cadaud = $data["rates"]["CAD"] / $data["rates"]["AUD"];
+                $nzdaud = $data["rates"]["NZD"] / $data["rates"]["AUD"];
                 $euraud = 1.0 / $data["rates"]["AUD"];
                 
                 // Crypto
@@ -189,6 +194,14 @@
                 //BCHSV
                 $btc_bchsv = $data_poloniex["BTC_BCHSV"]["last"];
                 $aud_bchsv = $btc_bchsv * $btc_price_aud;    
+                
+                //BCHABC
+                $btc_bchabc = $data_poloniex["BTC_BCHABC"]["last"];
+                $aud_bchabc = $btc_bchabc * $btc_price_aud;    
+                
+                //BCHEOS
+                $btc_eos = $data_poloniex["BTC_EOS"]["last"];
+                $aud_eos = $btc_eos * $btc_price_aud;    
                 
                 // Precious Metals
                 // Gold
@@ -337,7 +350,7 @@
                 // BTC
                 echo('                    <span class="crypto">BTC:</span>');
                 echo(PHP_EOL);
-                echo('                    <span class="cryptod">' . money_format('%9.2i', $btc_price_aud) . '&nbsp;&nbsp;&nbsp;&nbsp;</span>');
+                echo('                    <span class="cryptod">' . money_format('%9.2i', $btc_price_aud) . $four_spaces . '</span>');
                 echo(PHP_EOL);
                 echo('                    <br/>' . PHP_EOL);
                 
@@ -351,26 +364,40 @@
                 //DASH
                 echo('                    <span class="crypto">DASH:</span>');
                 echo(PHP_EOL);
-                echo('                    <span class="cryptod">' . money_format('%9.2i', $aud_dash) . '&nbsp;&nbsp;&nbsp;&nbsp;</span>');
+                echo('                    <span class="cryptod">' . money_format('%9.2i', $aud_dash) . $four_spaces . '</span>');
                 echo(PHP_EOL);
                 echo('                    <br/>' . PHP_EOL);
                 
                 //ETH
                 echo('                    <span class="crypto">ETH:</span>');
                 echo(PHP_EOL);
-                echo('                    <span class="cryptod">' . money_format('%9.2i', $aud_eth) . '&nbsp;&nbsp;&nbsp;&nbsp;</span>');
+                echo('                    <span class="cryptod">' . money_format('%9.2i', $aud_eth) . $four_spaces . '</span>');
                 echo(PHP_EOL);
                 echo('                    <br/>' . PHP_EOL);
                 
                 //BCHSV
                 echo('                    <span class="crypto">BCHSV:</span>');
                 echo(PHP_EOL);
-                echo('                    <span class="cryptod">' . money_format('%9.2i', $aud_bchsv) . '&nbsp;&nbsp;&nbsp;&nbsp;</span>');
+                echo('                    <span class="cryptod">' . money_format('%9.2i', $aud_bchsv) . $four_spaces . '</span>');
+                echo(PHP_EOL);
+                echo('                    <br/>' . PHP_EOL);
+                
+                //BCHABC
+                echo('                    <span class="crypto">BCHABC:</span>');
+                echo(PHP_EOL);
+                echo('                    <span class="cryptod">' . money_format('%9.2i', $aud_bchabc) . $four_spaces . '</span>');
+                echo(PHP_EOL);
+                echo('                    <br/>' . PHP_EOL);
+                
+                //EOS
+                echo('                    <span class="crypto">EOS:</span>');
+                echo(PHP_EOL);
+                echo('                    <span class="cryptod">' . money_format('%9.2i', $aud_eos) . $four_spaces . '</span>');
                 echo(PHP_EOL);
                 echo('                    <br/>' . PHP_EOL);
                 
                 echo('                </div><!-- end box1 -->' . PHP_EOL); 
-                echo('            </div><!-- end //outer2 -->' . PHP_EOL);
+                echo('            </div><!-- end outer2 -->' . PHP_EOL);
                 
                 // Precious Metals
                 echo('            <div id="outer3">' . PHP_EOL);
@@ -410,6 +437,12 @@
                 echo('                    <span class="time">EUR: ' . money_format('%2.5i', $euraud) . '</span>' . PHP_EOL);   
                 echo('                    <br/>' . PHP_EOL);   
                 echo('                    <span class="time">GBP: ' . money_format('%2.5i', $gbpaud) . '</span>' . PHP_EOL);   
+                echo('                    <br/>' . PHP_EOL);   
+                echo('                    <span class="time">CHF: ' . money_format('%2.5i', $chfaud) . '</span>' . PHP_EOL);                   
+                echo('                    <br/>' . PHP_EOL);   
+                echo('                    <span class="time">CAD: ' . money_format('%2.5i', $cadaud) . '</span>' . PHP_EOL);                   
+                echo('                    <br/>' . PHP_EOL);   
+                echo('                    <span class="time">NZD: ' . money_format('%2.5i', $nzdaud) . '</span>' . PHP_EOL);                   
                 echo('                    <br/>' . PHP_EOL);   
                 echo('                </div>' . PHP_EOL);
                 echo('            </div><!-- end //outer4 -->' . PHP_EOL);
