@@ -6,11 +6,13 @@
 // 11/08/2018 Added crypto currency prices                                                     
 // 12/08/2018 Added FOREX 
 // 15/08/2018 Added Silver
+// 03/01/2018 Added Dash and removed BCH
 
 ?>
 
 <!DOCTYPE html PUBLIC '-//W3C//DTD XHTML 1.0 Strict//EN' 'http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd'>
 <html xmlns='http://www.w3.org/1999/xhtml' xml:lang='en'>
+    
 	<head>		
         <meta http-equiv="Content-Type" content="text/html;charset=utf-8"/>
         <meta http-equiv="refresh" content="1200"/>
@@ -184,60 +186,23 @@
                 $btc_eth = $data_poloniex["BTC_ETH"]["last"];
                 $aud_eth = $btc_eth * $btc_price_aud;                            
                 
+                //BCHSV
+                $btc_bchsv = $data_poloniex["BTC_BCHSV"]["last"];
+                $aud_bchsv = $btc_bchsv * $btc_price_aud;    
+                
                 // Precious Metals
                 // Gold
                 
                 $kg_factor = 32.1507;
                 $gold_json = CallAPI('GET', 'http://goldpricez.com/api/rates/currency/usd/measure/all', false, '352b69e93c5a43d513e4db1e4803019f352b69e9');
                 $gd = str_replace("\\", "", $gold_json);        
-                $gd = substr($gd,1,-1);
+                $gd = substr($gd, 1, -1);
                 $gold_data = json_decode($gd, TRUE);             
-                $gold_aud = $gold_data["ounce_price_usd"] / $usdaud;
+                $gold_aud = $gold_data["ounce_price_usd"] / $usdaud;               
                 
-                // Silver 
-                // Get newest date
-                //$api_key = "SBPYxUYb_hz32nKxtqGU"; 
-                //$params = new \stdClass();            
-                //$params->start_date = "2018-08-14";
-                //$params->end_date = "2018-08-14";            
-                //$params->access_key = $api_key;
-                //$json = CallAPI('GET', 'https://www.quandl.com/api/v3/datasets/LBMA/SILVER', $params , false);
+                // Brent Crude
                 
-                //$silver_data = json_decode($json, TRUE);
-                
-                //// Get Current Price                
-                //$params->start_date = $silver_data["dataset"]["newest_available_date"];
-                //$params->end_date   = $silver_data["dataset"]["newest_available_date"];            
-                //$params->access_key = $api_key;
-                //$json = CallAPI('GET', 'https://www.quandl.com/api/v3/datasets/LBMA/SILVER', $params , false);
-                //$silver_data = json_decode($json, TRUE);
-                //$silver_aud = $silver_data["dataset"]["data"][0][1] / $usdaud;                    
-                
-                //$api_key = "46546c6b-ea03-43e7-9a64-dbf6386f3dd7";           
-                //$denoti_url = "http://api.denoti.com/api/finance/commodity/silver_comex/last";
-                //$params = new \stdClass();  
-                //$params->access_key = $api_key;
-                //$json = CallAPI('GET', $denoti_url , $params , false);
-                //// echo($json);
-                //$silver_data = json_decode($json, TRUE);
-                //$limit_exceeded = false;                            
-                //if ($silver_data["status"] == "403")
-                //{
-                    //$limit_exceeded = true;
-                //}
-                //else
-                //{
-                    //$temp = $silver_data["data"];              
-                    //$silver_aud = $temp[0]["value"] / $usdaud;
-                    
-                    //// Brent Crude
-                    //$denoti_url = "http://api.denoti.com/api/finance/commodity/brent_crude_ice/last";
-                    //$json = CallAPI('GET', $denoti_url , $params , false);
-                    //$brent_data = json_decode($json, TRUE);                            
-                    //$temp = $brent_data["data"];              
-                    //$brent = $temp[0]["value"];             
-                //}
-                
+                shell_exec("rm /var/www/html/temp/brent.html");
                 shell_exec("wget -q -O /var/www/html/temp/brent.html https://markets.businessinsider.com/commodities/oil-price");
                 
                 $file = "/var/www/html/temp/brent.html";
@@ -249,10 +214,10 @@
                 $xpath = new DOMXpath($doc);
 
                 // example 1: for everything with an id
-                //$elements = $xpath->query("//*[@id]");
+                // $elements = $xpath->query("//*[@id]");
 
                 // example 2: for node data in a selected id
-                //$elements = $xpath->query("/html/body/div[@id='yourTagIdHere']");
+                // $elements = $xpath->query("/html/body/div[@id='yourTagIdHere']");
 
                 // example 3: same as above with wildcard
                 $elements = $xpath->query("//*[@id='daily-arrow-price']");
@@ -270,7 +235,6 @@
                 }
                 
                 shell_exec("wget -q -O /var/www/html/temp/silver.html http://www.kitco.com/charts/livesilver.html");
-                // to retrieve selected html data, try these DomXPath examples:
 
                 $file = "/var/www/html/temp/silver.html";
                 $doc = new DOMDocument();
@@ -279,12 +243,13 @@
                 libxml_use_internal_errors(false);
 
                 $xpath = new DOMXpath($doc);
-
+                
+                // to retrieve selected html data, try these DomXPath examples:
                 // example 1: for everything with an id
-                //$elements = $xpath->query("//*[@id]");
+                // $elements = $xpath->query("//*[@id]");
 
                 // example 2: for node data in a selected id
-                //$elements = $xpath->query("/html/body/div[@id='yourTagIdHere']");
+                // $elements = $xpath->query("/html/body/div[@id='yourTagIdHere']");
 
                 // example 3: same as above with wildcard
                 $elements = $xpath->query("//*[@id='sp-bid']");
@@ -383,7 +348,7 @@
                 echo(PHP_EOL);
                 echo('                    <br/>' . PHP_EOL);
                 
-                //BCH
+                //DASH
                 echo('                    <span class="crypto">DASH:</span>');
                 echo(PHP_EOL);
                 echo('                    <span class="cryptod">' . money_format('%9.2i', $aud_dash) . '&nbsp;&nbsp;&nbsp;&nbsp;</span>');
@@ -394,6 +359,13 @@
                 echo('                    <span class="crypto">ETH:</span>');
                 echo(PHP_EOL);
                 echo('                    <span class="cryptod">' . money_format('%9.2i', $aud_eth) . '&nbsp;&nbsp;&nbsp;&nbsp;</span>');
+                echo(PHP_EOL);
+                echo('                    <br/>' . PHP_EOL);
+                
+                //BCHSV
+                echo('                    <span class="crypto">BCHSV:</span>');
+                echo(PHP_EOL);
+                echo('                    <span class="cryptod">' . money_format('%9.2i', $aud_bchsv) . '&nbsp;&nbsp;&nbsp;&nbsp;</span>');
                 echo(PHP_EOL);
                 echo('                    <br/>' . PHP_EOL);
                 
