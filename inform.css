@@ -149,7 +149,18 @@ span.home
 span.time
 {
 	text-align: left;
-	padding: 0px;
+	padding-left: 30px;
+	margin:  0px;
+	font-family: Arial,Helvetica Neue,Helvetica,sans-serif; 
+	font-size: 20px;
+	width: 180px;
+	display: inline-block;
+}
+
+span.currency
+{
+	text-align: left;
+	padding-left: 40px;
 	margin:  0px;
 	font-family: Arial,Helvetica Neue,Helvetica,sans-serif; 
 	font-size: 20px;

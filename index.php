@@ -213,6 +213,42 @@
                 $gold_data = json_decode($gd, TRUE);             
                 $gold_aud = $gold_data["ounce_price_usd"] / $usdaud;               
                 
+                // Silver
+                $silver_error = shell_exec("wget -q -O /var/www/html/temp/silver.html http://www.kitco.com/charts/livesilver.html; echo $?");
+
+                $file = "/var/www/html/temp/silver.html";
+                $doc = new DOMDocument();
+                libxml_use_internal_errors(true);
+                $doc->loadHTMLFile($file);
+                libxml_use_internal_errors(false);
+
+                $xpath = new DOMXpath($doc);
+                
+                // to retrieve selected html data, try these DomXPath examples:
+                // example 1: for everything with an id
+                // $elements = $xpath->query("//*[@id]");
+
+                // example 2: for node data in a selected id
+                // $elements = $xpath->query("/html/body/div[@id='yourTagIdHere']");
+
+                // example 3: same as above with wildcard
+                $elements = $xpath->query("//*[@id='sp-bid']");
+
+                if (!is_null($elements)) 
+                {
+                    foreach ($elements as $element)
+                    { 
+                        $nodes = $element->childNodes;
+                        foreach ($nodes as $node) 
+                        {
+                            $silver_us = $node->nodeValue;
+                        }
+                    }
+                }
+                
+                $silver_aud = $silver_us / $usdaud;     
+                
+                
                 // Brent Crude
                 
                 shell_exec("rm /var/www/html/temp/brent.html");
@@ -247,39 +283,6 @@
                     }
                 }
                 
-                shell_exec("wget -q -O /var/www/html/temp/silver.html http://www.kitco.com/charts/livesilver.html");
-
-                $file = "/var/www/html/temp/silver.html";
-                $doc = new DOMDocument();
-                libxml_use_internal_errors(true);
-                $doc->loadHTMLFile($file);
-                libxml_use_internal_errors(false);
-
-                $xpath = new DOMXpath($doc);
-                
-                // to retrieve selected html data, try these DomXPath examples:
-                // example 1: for everything with an id
-                // $elements = $xpath->query("//*[@id]");
-
-                // example 2: for node data in a selected id
-                // $elements = $xpath->query("/html/body/div[@id='yourTagIdHere']");
-
-                // example 3: same as above with wildcard
-                $elements = $xpath->query("//*[@id='sp-bid']");
-
-                if (!is_null($elements)) 
-                {
-                    foreach ($elements as $element)
-                    { 
-                        $nodes = $element->childNodes;
-                        foreach ($nodes as $node) 
-                        {
-                            $silver_us = $node->nodeValue;
-                        }
-                    }
-                }
-                
-                $silver_aud = $silver_us / $usdaud;     
                 
                 echo('            <div id="outer1">' . PHP_EOL); 
                 
@@ -432,17 +435,17 @@
                 echo('                <h2>' . PHP_EOL);
                 echo('                    FOREX ($AUD)' . PHP_EOL);
                 echo('                </h2>' . PHP_EOL);
-                echo('                    <span class="time">USD: ' . money_format('%2.5i', $usdaud) . '</span>' . PHP_EOL);
+                echo('                    <span class="currency">USD: ' . money_format('%2.5i', $usdaud) . '</span>' . PHP_EOL);
                 echo('                    <br/>' . PHP_EOL);   
-                echo('                    <span class="time">EUR: ' . money_format('%2.5i', $euraud) . '</span>' . PHP_EOL);   
+                echo('                    <span class="currency">EUR: ' . money_format('%2.5i', $euraud) . '</span>' . PHP_EOL);   
                 echo('                    <br/>' . PHP_EOL);   
-                echo('                    <span class="time">GBP: ' . money_format('%2.5i', $gbpaud) . '</span>' . PHP_EOL);   
+                echo('                    <span class="currency">GBP: ' . money_format('%2.5i', $gbpaud) . '</span>' . PHP_EOL);   
                 echo('                    <br/>' . PHP_EOL);   
-                echo('                    <span class="time">CHF: ' . money_format('%2.5i', $chfaud) . '</span>' . PHP_EOL);                   
+                echo('                    <span class="currency">CHF: ' . money_format('%2.5i', $chfaud) . '</span>' . PHP_EOL);                   
                 echo('                    <br/>' . PHP_EOL);   
-                echo('                    <span class="time">CAD: ' . money_format('%2.5i', $cadaud) . '</span>' . PHP_EOL);                   
+                echo('                    <span class="currency">CAD: ' . money_format('%2.5i', $cadaud) . '</span>' . PHP_EOL);                   
                 echo('                    <br/>' . PHP_EOL);   
-                echo('                    <span class="time">NZD: ' . money_format('%2.5i', $nzdaud) . '</span>' . PHP_EOL);                   
+                echo('                    <span class="currency">NZD: ' . money_format('%2.5i', $nzdaud) . '</span>' . PHP_EOL);                   
                 echo('                    <br/>' . PHP_EOL);   
                 echo('                </div>' . PHP_EOL);
                 echo('            </div><!-- end //outer4 -->' . PHP_EOL);
@@ -465,7 +468,19 @@
                 echo('                    <a href="http://goldpricez.com">Gold rates by <img alt="Gold Price Data" src="http://goldpricez.com/assets/logo.jpg" height="20"/></a>' . PHP_EOL);            
                 echo('          	      <a href="http://jigsaw.w3.org/css-validator/check/referer"><img style="border:0;width:89px;height:31px" src="http://jigsaw.w3.org/css-validator/images/vcss" alt="Valid CSS!" /></a>' . PHP_EOL);                
                 echo('      	   	      <a href="http://validator.w3.org/check?uri=referer"><img src="http://www.w3.org/Icons/valid-xhtml10" alt="Valid XHTML 1.0 Strict" height="31" width="89" /></a>' . PHP_EOL);       
-                echo('                </div>' . PHP_EOL);            
+                if ($silver_error != 0)
+                {
+                    echo('<br/>' . PHP_EOL);
+                    if ($silver_error === 4)
+                    {
+                        echo('Network Error Accessing Silver Price Web Page' . PHP_EOL);                           
+                    }
+                    else
+                    {
+                        echo('Silver Error Code: ' . $silver_error . PHP_EOL);                           
+                    }
+                }
+                echo('                </div>' . PHP_EOL);                 
                 echo('            </div>' . PHP_EOL);
                 echo('        </div>' . PHP_EOL);
                 
