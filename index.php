@@ -225,38 +225,48 @@
 				$silver_url   = "http://www.kitco.com/charts/livesilver.html";
 				$silver_cmd   = "wget -q -O /var/www/html/temp/silver.html " . $silver_url . "; echo $?";
 				$silver_error = shell_exec($silver_cmd);
-
-				$file = "/var/www/html/temp/silver.html";
-				$doc = new DOMDocument();
-				libxml_use_internal_errors(true);
-				$doc->loadHTMLFile($file);
-				libxml_use_internal_errors(false);
-
-				$xpath = new DOMXpath($doc);
-
-				// to retrieve selected html data, try these DomXPath examples:
-				// example 1: for everything with an id
-				// $elements = $xpath->query("//*[@id]");
-
-				// example 2: for node data in a selected id
-				// $elements = $xpath->query("/html/body/div[@id='yourTagIdHere']");
-
-				// example 3: same as above with wildcard
-				$elements = $xpath->query("//*[@id='sp-bid']");
-
-				if (!is_null($elements))
+				
+				if ($silver_error == 0)
 				{
-					foreach ($elements as $element)
+					$file = "/var/www/html/temp/silver.html";
+					$doc = new DOMDocument();
+					libxml_use_internal_errors(true);
+					$doc->loadHTMLFile($file);
+					libxml_use_internal_errors(false);
+
+					$xpath = new DOMXpath($doc);
+
+					// to retrieve selected html data, try these DomXPath examples:
+					// example 1: for everything with an id
+					// $elements = $xpath->query("//*[@id]");
+
+					// example 2: for node data in a selected id
+					// $elements = $xpath->query("/html/body/div[@id='yourTagIdHere']");
+
+					// example 3: same as above with wildcard
+					$elements = $xpath->query("//*[@id='sp-bid']");
+
+					if (!is_null($elements))
 					{
-						$nodes = $element->childNodes;
-						foreach ($nodes as $node)
+						foreach ($elements as $element)
 						{
-							$silver_us = $node->nodeValue;
+							$nodes = $element->childNodes;
+							foreach ($nodes as $node)
+							{
+								$silver_us = $node->nodeValue;
+							}
 						}
 					}
-				}
 
-				$silver_aud = $silver_us / $usdaud;
+					$silver_aud = $silver_us / $usdaud;
+					$silver_out_oz =  money_format('%7.2i', $silver_aud);
+					$silver_out_kg =  money_format('%7.2i', $silver_aud * $kg_factor);
+				}
+				else
+				{
+					$silver_out_oz = "Error";
+					$silver_out_kg = "Error";
+				}
 
 				// Brent Crude
 
@@ -425,9 +435,6 @@
 				echo('					<span class="precious3">' . money_format('%7.2i', $gold_aud   * $kg_factor) . '</span>' . PHP_EOL);
 				echo('					<br/>' . PHP_EOL);
 				echo('					<span class="precious1">Silver:</span>'  . PHP_EOL);
-
-				$silver_out_oz =  money_format('%7.2i', $silver_aud);
-				$silver_out_kg =  money_format('%7.2i', $silver_aud * $kg_factor);
 
 				echo('					<span class="precious2">' . $silver_out_oz . '</span>' . PHP_EOL);
 				echo('					<span class="precious3">' . $silver_out_kg . '</span>' . PHP_EOL);
