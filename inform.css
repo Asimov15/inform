@@ -208,7 +208,7 @@ span.commod1
 	font-family: Arial,Helvetica Neue,Helvetica,sans-serif; 
 	font-size: 20px;
 	width: 120px;
-	display: inline-block;	
+	display: inline-block;
 }
 
 span.commod2
@@ -219,9 +219,22 @@ span.commod2
 	margin:  0px;
 	font-family: "Lucida Console", Monaco, monospace; 
 	font-size: 20px;
-	width: 90px;
+	width: 80px;
 	display: inline-block;
 }
+
+span.commod3
+{
+	/* border: 2px solid green; */
+	text-align: left;
+	padding: 0px;
+	margin:  0px;
+	font-family: Arial,Helvetica Neue,Helvetica,sans-serif; 
+	font-size: 20px;
+	width: 100px;
+	display: inline-block;
+}
+
 
 span.precious1
 {

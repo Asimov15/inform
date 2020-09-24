@@ -7,6 +7,7 @@
 // 12/08/2018 Added FOREX
 // 15/08/2018 Added Silver
 // 03/01/2018 Added Dash and removed BCH
+// 24/09/2020 Use different currency API: https://api.exchangeratesapi.io/
 
 ?>
 
@@ -162,17 +163,17 @@
 				setlocale(LC_MONETARY, "en_US");
 				$FIXER_API_KEY = "b9c6a28b6be2e9bd243c14a77766ea32";
 				$params = new \stdClass();
-				$params->access_key = $FIXER_API_KEY;
-				$params->base = "EUR";
-				$params->symbols = "GBP,JPY,USD,AUD,CHF,CAD,NZD";
-				$json = CallAPI('GET', 'http://data.fixer.io/api/latest', $params , false);
+				$params->base = "AUD";
+				$params->symbols = "EUR,GBP,USD,CHF,CAD,NZD,INR";
+				$json = CallAPI('GET', 'https://api.exchangeratesapi.io/latest', $params , false);
 				$data = json_decode($json, TRUE);
-				$usdaud = $data["rates"]["USD"] / $data["rates"]["AUD"];
-				$gbpaud = $data["rates"]["GBP"] / $data["rates"]["AUD"];
-				$chfaud = $data["rates"]["CHF"] / $data["rates"]["AUD"];
-				$cadaud = $data["rates"]["CAD"] / $data["rates"]["AUD"];
-				$nzdaud = $data["rates"]["NZD"] / $data["rates"]["AUD"];
-				$euraud = 1.0 / $data["rates"]["AUD"];
+				$usdaud = $data["rates"]["USD"];
+				$gbpaud = $data["rates"]["GBP"];
+				$chfaud = $data["rates"]["CHF"];
+				$cadaud = $data["rates"]["CAD"];
+				$nzdaud = $data["rates"]["NZD"];
+				$euraud = $data["rates"]["EUR"];
+				$inraud = $data["rates"]["INR"];
 
 				// Crypto
 
@@ -182,9 +183,9 @@
 				$btc_price_aud = str_replace(",", "", $data_btc["bpi"]["AUD"]["rate"]);
 
 				//GRC
-				$json = CallAPI('GET', 'https://bittrex.com/api/v1.1/public/getticker?market=BTC-GRC', false, false);
-				$data_bittrex = json_decode($json, TRUE);
-				$btc_grc = $data_bittrex["result"]["Last"];
+				$json = CallAPI('GET', 'https://www.southxchange.com/api/price/GRC/BTC', false, false);
+				$data_south_exchange = json_decode($json, TRUE);
+				$btc_grc = $data_south_exchange["Last"];
 				$aud_grc = $btc_grc * $btc_price_aud;
 
 				$json = CallAPI('GET', 'https://poloniex.com/public?command=returnTicker', false, false);
@@ -288,7 +289,7 @@
 				// $elements = $xpath->query("/html/body/div[@id='yourTagIdHere']");
 
 				// example 3: same as above with wildcard
-				$elements = $xpath->query("//*[@id='daily-arrow-price']");
+				$elements = $xpath->query("//*[@class='price-section__current-value']");
 
 				if (!is_null($elements))
 				{
@@ -298,6 +299,29 @@
 						foreach ($nodes as $node)
 						{
 							$brent_usd = $node->nodeValue;
+						}
+					}
+				}
+				shell_exec("rm /var/www/html/temp/lean_hog.html");
+				shell_exec("wget -q -O /var/www/html/temp/lean_hog.html https://markets.businessinsider.com/commodities/lean-hog-price");
+
+				$file = "/var/www/html/temp/lean_hog.html";
+				$doc = new DOMDocument();
+				libxml_use_internal_errors(true);
+				$doc->loadHTMLFile($file);
+				libxml_use_internal_errors(false);
+
+				$xpath = new DOMXpath($doc);
+				$elements = $xpath->query("//*[@class='price-section__current-value']");
+
+				if (!is_null($elements))
+				{
+					foreach ($elements as $element)
+					{
+						$nodes = $element->childNodes;
+						foreach ($nodes as $node)
+						{
+							$lean_hog = $node->nodeValue;
 						}
 					}
 				}
@@ -462,17 +486,21 @@
 				echo('					<br/>' . PHP_EOL);
 				echo('					<span class="currency">NZD: ' . money_format('%2.5i', $nzdaud) . '</span>' . PHP_EOL);
 				echo('					<br/>' . PHP_EOL);
+				echo('					<span class="currency">INR: ' . money_format('%2.5i', $inraud) . '</span>' . PHP_EOL);
+				echo('					<br/>' . PHP_EOL);
 				echo('				</div>' . PHP_EOL);
 				echo('			</div><!-- end //outer4 -->' . PHP_EOL);
 
 				// Commodities
 				echo('			<div id="outer5">' . PHP_EOL);
 				echo('				<div class="box1">' . PHP_EOL);
-				echo('				<h2>' . PHP_EOL);
-				echo('					Commodities ($US)' . PHP_EOL);
-				echo('				</h2>' . PHP_EOL);
+				echo('					<h2 style="text-align: left; margin-left: -5px">Commodity&nbsp;&nbsp;&nbsp;Price&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Unit</h2>' . PHP_EOL);
 				echo('					<span class="commod1">Brent Crude: </span>' . PHP_EOL);
 				echo('					<span class="commod2">' . $brent_usd . '</span>' . PHP_EOL);
+				echo('					<span class="commod3">$US/barrel</span>' . PHP_EOL);
+				echo('					<span class="commod1">Lean Hog: </span>' . PHP_EOL);
+				echo('					<span class="commod2">' . $lean_hog . '</span>' . PHP_EOL);
+				echo('					<span class="commod3">$US/lb</span>' . PHP_EOL);
 				echo('					<br/>' . PHP_EOL);
 				echo('				</div>' . PHP_EOL);
 				echo('			</div><!-- end //outer5 -->' . PHP_EOL);
