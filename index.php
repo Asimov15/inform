@@ -28,13 +28,77 @@
 		<div id="wrapper">
 
 			<?php
+				function display_xml_error($error)
+				{
+					$return = str_repeat('-', $error->column) . "^\n";
+	
+					switch ($error->level) 
+					{
+						case LIBXML_ERR_WARNING:
+							$return .= "Warning $error->code: ";
+							break;
+						case LIBXML_ERR_ERROR:
+							$return .= "Error $error->code: ";
+							break;
+						case LIBXML_ERR_FATAL:
+							$return .= "Fatal Error $error->code: ";
+							break;
+					}
+					$return .= trim($error->message) .
+								"\n  Line: $error->line" .
+								"\n  Column: $error->column";
+					if ($error->file) 
+					{
+						$return .= "\n  File: $error->file";
+					}
+					return "$return\n\n--------------------------------------------\n\n";
+				}
+				function get_commodity_price($commodity, $web_reference, $xpath_query)
+				{
+					$output = "0.00";
+					$file_name = "/var/www/html/temp/" . $commodity . ".html";
+					$command = "rm " . $file_name;
+					shell_exec($command);
+					$command = "wget -q -O " . $file_name . " " . $web_reference;
+					shell_exec($command);
+					$doc = new DOMDocument();
+					libxml_use_internal_errors(true);
+					if (!$doc->loadHTMLFile($file_name))
+					{
+						foreach (libxml_get_errors() as $error) 
+						{
+							echo display_xml_error($error);
+							print "\n";
+						}
+					};
+
+					//libxml_use_internal_errors(false);
+
+					$xml_string = $doc->saveXML();
+
+					$xpath = new DOMXpath($doc);
+					$elements = $xpath->query($xpath_query);
+
+					if (!is_null($elements))
+					{
+						foreach ($elements as $element)
+						{
+							$nodes = $element->childNodes;
+							foreach ($nodes as $node)
+							{
+								$output = $node->nodeValue;
+							}
+						}
+					}
+					return $output;
+				}
 
 				function ip_info($ip = NULL, $purpose = "location", $deep_detect = TRUE)
 				{
 					$output = NULL;
 					if (filter_var($ip, FILTER_VALIDATE_IP) === FALSE)
 					{
-						$ip = $_SERVER["REMOTE_ADDR"];
+						$ip = $_SERVER['REMOTE_ADDR'];
 						if ($deep_detect)
 						{
 							if (filter_var(@$_SERVER['HTTP_X_FORWARDED_FOR'], FILTER_VALIDATE_IP))
@@ -161,7 +225,6 @@
 
 				// FOREX
 				setlocale(LC_MONETARY, "en_US");
-				$FIXER_API_KEY = "b9c6a28b6be2e9bd243c14a77766ea32";
 				$params = new \stdClass();
 				$params->base = "AUD";
 				$params->symbols = "EUR,GBP,USD,CHF,CAD,NZD,INR";
@@ -215,7 +278,6 @@
 				// Gold
 
 				$gold_url = 'http://goldpricez.com/api/rates/currency/usd/measure/all';
-				$kg_factor = 32.1507;
 				$gold_json = CallAPI('GET', $gold_url, false, '352b69e93c5a43d513e4db1e4803019f352b69e9');
 				$gd = str_replace("\\", "", $gold_json);
 				$gd = substr($gd, 1, -1);
@@ -223,108 +285,16 @@
 				$gold_aud = $gold_data["ounce_price_usd"] / $usdaud;
 
 				// Silver
-				$silver_url   = "http://www.kitco.com/charts/livesilver.html";
-				$silver_cmd   = "wget -q -O /var/www/html/temp/silver.html " . $silver_url . "; echo $?";
-				$silver_error = shell_exec($silver_cmd);
-				
-				if ($silver_error == 0)
-				{
-					$file = "/var/www/html/temp/silver.html";
-					$doc = new DOMDocument();
-					libxml_use_internal_errors(true);
-					$doc->loadHTMLFile($file);
-					libxml_use_internal_errors(false);
-
-					$xpath = new DOMXpath($doc);
-
-					// to retrieve selected html data, try these DomXPath examples:
-					// example 1: for everything with an id
-					// $elements = $xpath->query("//*[@id]");
-
-					// example 2: for node data in a selected id
-					// $elements = $xpath->query("/html/body/div[@id='yourTagIdHere']");
-
-					// example 3: same as above with wildcard
-					$elements = $xpath->query("//*[@id='sp-bid']");
-
-					if (!is_null($elements))
-					{
-						foreach ($elements as $element)
-						{
-							$nodes = $element->childNodes;
-							foreach ($nodes as $node)
-							{
-								$silver_us = $node->nodeValue;
-							}
-						}
-					}
-
-					$silver_aud = $silver_us / $usdaud;
-					$silver_out_oz =  money_format('%7.2i', $silver_aud);
-					$silver_out_kg =  money_format('%7.2i', $silver_aud * $kg_factor);
-				}
-				else
-				{
-					$silver_out_oz = "Error";
-					$silver_out_kg = "Error";
-				}
+				$silver_usd = get_commodity_price("silver", "http://www.kitco.com/charts/livesilver.html", "//*[@id='sp-bid']");
+				$silver_aud = $silver_usd / $usdaud;
+				$silver_out_oz =  money_format('%7.2i', $silver_aud);
 
 				// Brent Crude
-
-				shell_exec("rm /var/www/html/temp/brent.html");
-				shell_exec("wget -q -O /var/www/html/temp/brent.html https://markets.businessinsider.com/commodities/oil-price");
-
-				$file = "/var/www/html/temp/brent.html";
-				$doc = new DOMDocument();
-				libxml_use_internal_errors(true);
-				$doc->loadHTMLFile($file);
-				libxml_use_internal_errors(false);
-
-				$xpath = new DOMXpath($doc);
-
-				// example 1: for everything with an id
-				// $elements = $xpath->query("//*[@id]");
-
-				// example 2: for node data in a selected id
-				// $elements = $xpath->query("/html/body/div[@id='yourTagIdHere']");
-
-				// example 3: same as above with wildcard
-				$elements = $xpath->query("//*[@class='price-section__current-value']");
-
-				if (!is_null($elements))
-				{
-					foreach ($elements as $element)
-					{
-						$nodes = $element->childNodes;
-						foreach ($nodes as $node)
-						{
-							$brent_usd = $node->nodeValue;
-						}
-					}
-				}
-				shell_exec("rm /var/www/html/temp/lean_hog.html");
-				shell_exec("wget -q -O /var/www/html/temp/lean_hog.html https://markets.businessinsider.com/commodities/lean-hog-price");
-
-				$file = "/var/www/html/temp/lean_hog.html";
-				$doc = new DOMDocument();
-				libxml_use_internal_errors(true);
-				$doc->loadHTMLFile($file);
-				libxml_use_internal_errors(false);
-
-				$xpath = new DOMXpath($doc);
-				$elements = $xpath->query("//*[@class='price-section__current-value']");
-
-				if (!is_null($elements))
-				{
-					foreach ($elements as $element)
-					{
-						$nodes = $element->childNodes;
-						foreach ($nodes as $node)
-						{
-							$lean_hog = $node->nodeValue;
-						}
-					}
-				}
+				$brent_usd = get_commodity_price("brent", "https://markets.businessinsider.com/commodities/oil-price", "//*[@class='price-section__current-value']");
+				$brent_out = money_format('%7.2i', $brent_usd);
+				// Lean Hog
+				$lean_hog  = get_commodity_price("lean-hog", "https://markets.businessinsider.com/commodities/lean-hog-price", "//*[@class='price-section__current-value']");
+				$lean_hog_out = money_format('%7.2i', $lean_hog);
 
 				echo('			<div id="outer1">' . PHP_EOL);
 
@@ -395,7 +365,7 @@
 				// BTC
 				echo('					<span class="crypto">BTC:</span>');
 				echo(PHP_EOL);
-				echo('					<span class="cryptod">' . money_format('%9.2i', $btc_price_aud) . $four_spaces . '</span>');
+				echo('					<span class="cryptod">' . money_format('%9.2i', floatval($btc_price_aud)) . $four_spaces . '</span>');
 				echo(PHP_EOL);
 				echo('					<br/>' . PHP_EOL);
 
@@ -447,27 +417,30 @@
 				// Precious Metals
 				echo('			<div id="outer3">' . PHP_EOL);
 				echo('				<div class="box1">' . PHP_EOL);
-				echo('				<h2>' . PHP_EOL);
-				echo('					Precious Metals ($AUD)');
-				echo('				</h2>' . PHP_EOL);
-				echo('					<span class="pmhead1">Troy Ounce</span>'  . PHP_EOL);
-				echo('					<span class="pmhead2">Kilogram</span>'  . PHP_EOL);
+				echo('				<h2>Comodities</h2>' . PHP_EOL);
+				echo('					');
+				echo('				' . PHP_EOL);
+				echo('					<span class="pmhead1">Commodity</span>'  . PHP_EOL);
+				echo('					<span class="pmhead2">Price</span>'  . PHP_EOL);
+				echo('					<span class="pmhead3">Unit</span>'  . PHP_EOL);
 				echo('					<br/>' . PHP_EOL);
-
 				echo('					<span class="precious1">Gold:</span>'  . PHP_EOL);
 				echo('					<span class="precious2">' . money_format('%7.2i', $gold_aud  ) . '</span>' . PHP_EOL);
-				echo('					<span class="precious3">' . money_format('%7.2i', $gold_aud   * $kg_factor) . '</span>' . PHP_EOL);
+				echo('					<span class="precious3">$AUD/troy ounce</span>'  . PHP_EOL);
 				echo('					<br/>' . PHP_EOL);
 				echo('					<span class="precious1">Silver:</span>'  . PHP_EOL);
-
 				echo('					<span class="precious2">' . $silver_out_oz . '</span>' . PHP_EOL);
-				echo('					<span class="precious3">' . $silver_out_kg . '</span>' . PHP_EOL);
-
+				echo('					<span class="precious3">$AUD/troy ounce</span>'  . PHP_EOL);
 				echo('					<br/>' . PHP_EOL);
-
+				echo('					<span class="precious1">Brent Crude: </span>' . PHP_EOL);
+				echo('					<span class="precious2">' . $brent_out . '</span>' . PHP_EOL);
+				echo('					<span class="precious3">$US/barrel</span>' . PHP_EOL);
+				echo('					<br/>' . PHP_EOL);
+				echo('					<span class="precious1">Lean Hog: </span>' . PHP_EOL);
+				echo('					<span class="precious2">' . $lean_hog_out . '</span>' . PHP_EOL);
+				echo('					<span class="precious3">$US/lb</span>' . PHP_EOL);
 				echo('				</div>' . PHP_EOL);
 				echo('			</div><!-- end //outer3 -->' . PHP_EOL);
-
 				// Forex
 				echo('			<div id="outer4">' . PHP_EOL);
 				echo('				<div class="box1">' . PHP_EOL);
@@ -494,13 +467,7 @@
 				// Commodities
 				echo('			<div id="outer5">' . PHP_EOL);
 				echo('				<div class="box1">' . PHP_EOL);
-				echo('					<h2 style="text-align: left; margin-left: -5px">Commodity&nbsp;&nbsp;&nbsp;Price&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Unit</h2>' . PHP_EOL);
-				echo('					<span class="commod1">Brent Crude: </span>' . PHP_EOL);
-				echo('					<span class="commod2">' . $brent_usd . '</span>' . PHP_EOL);
-				echo('					<span class="commod3">$US/barrel</span>' . PHP_EOL);
-				echo('					<span class="commod1">Lean Hog: </span>' . PHP_EOL);
-				echo('					<span class="commod2">' . $lean_hog . '</span>' . PHP_EOL);
-				echo('					<span class="commod3">$US/lb</span>' . PHP_EOL);
+				echo('					<h2 style="text-align: left; margin-left: -5px">Shares</h2>' . PHP_EOL);
 				echo('					<br/>' . PHP_EOL);
 				echo('				</div>' . PHP_EOL);
 				echo('			</div><!-- end //outer5 -->' . PHP_EOL);
