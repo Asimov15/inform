@@ -447,7 +447,7 @@
 				
 				echo('					<span class="precious1">Paladium:</span>'  . PHP_EOL);
 				echo('					<span class="precious2">' . $paladium_out . '</span>' . PHP_EOL);
-				echo('					<span class="precious3">$USD/troy ounce</span>'  . PHP_EOL);
+				echo('					<span class="precious3">$US/troy ounce</span>'  . PHP_EOL);
 				echo('					<br/>' . PHP_EOL);
 				
 				echo('					<span class="precious1">Brent Crude: </span>' . PHP_EOL);
