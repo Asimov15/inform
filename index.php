@@ -53,6 +53,7 @@
 					}
 					return "$return\n\n--------------------------------------------\n\n";
 				}
+				
 				function get_commodity_price($commodity, $web_reference, $xpath_query)
 				{
 					$output = "0.00";
@@ -72,7 +73,7 @@
 						}
 					};
 
-					//libxml_use_internal_errors(false);
+					libxml_use_internal_errors(false);
 
 					$xml_string = $doc->saveXML();
 
@@ -292,9 +293,18 @@
 				// Brent Crude
 				$brent_usd = get_commodity_price("brent", "https://markets.businessinsider.com/commodities/oil-price", "//*[@class='price-section__current-value']");
 				$brent_out = money_format('%7.2i', $brent_usd);
+
 				// Lean Hog
 				$lean_hog  = get_commodity_price("lean-hog", "https://markets.businessinsider.com/commodities/lean-hog-price", "//*[@class='price-section__current-value']");
 				$lean_hog_out = money_format('%7.2i', $lean_hog);
+
+				// Paladium
+				$paladium  = get_commodity_price("paladium", "https://markets.businessinsider.com/commodities/palladium-price", "//*[@class='price-section__current-value']");
+				$paladium_out = money_format('%7.2i', $paladium);
+
+				// TSLA
+				$tsla  = get_commodity_price("tsla", "https://markets.businessinsider.com/stocks/tsla-stock", "//*[@class='price-section__current-value']");
+				$tsla_out = money_format('%7.2i', $tsla);
 
 				echo('			<div id="outer1">' . PHP_EOL);
 
@@ -424,22 +434,32 @@
 				echo('					<span class="pmhead2">Price</span>'  . PHP_EOL);
 				echo('					<span class="pmhead3">Unit</span>'  . PHP_EOL);
 				echo('					<br/>' . PHP_EOL);
+				
 				echo('					<span class="precious1">Gold:</span>'  . PHP_EOL);
 				echo('					<span class="precious2">' . money_format('%7.2i', $gold_aud  ) . '</span>' . PHP_EOL);
 				echo('					<span class="precious3">$AUD/troy ounce</span>'  . PHP_EOL);
 				echo('					<br/>' . PHP_EOL);
+				
 				echo('					<span class="precious1">Silver:</span>'  . PHP_EOL);
 				echo('					<span class="precious2">' . $silver_out_oz . '</span>' . PHP_EOL);
 				echo('					<span class="precious3">$AUD/troy ounce</span>'  . PHP_EOL);
 				echo('					<br/>' . PHP_EOL);
+				
+				echo('					<span class="precious1">Paladium:</span>'  . PHP_EOL);
+				echo('					<span class="precious2">' . $paladium_out . '</span>' . PHP_EOL);
+				echo('					<span class="precious3">$USD/troy ounce</span>'  . PHP_EOL);
+				echo('					<br/>' . PHP_EOL);
+				
 				echo('					<span class="precious1">Brent Crude: </span>' . PHP_EOL);
 				echo('					<span class="precious2">' . $brent_out . '</span>' . PHP_EOL);
 				echo('					<span class="precious3">$US/barrel</span>' . PHP_EOL);
 				echo('					<br/>' . PHP_EOL);
+				
 				echo('					<span class="precious1">Lean Hog: </span>' . PHP_EOL);
 				echo('					<span class="precious2">' . $lean_hog_out . '</span>' . PHP_EOL);
 				echo('					<span class="precious3">$US/lb</span>' . PHP_EOL);
 				echo('				</div>' . PHP_EOL);
+				
 				echo('			</div><!-- end //outer3 -->' . PHP_EOL);
 				// Forex
 				echo('			<div id="outer4">' . PHP_EOL);
@@ -447,27 +467,37 @@
 				echo('				<h2>' . PHP_EOL);
 				echo('					FOREX ($AUD)' . PHP_EOL);
 				echo('				</h2>' . PHP_EOL);
-				echo('					<span class="currency">USD: ' . money_format('%2.5i', $usdaud) . '</span>' . PHP_EOL);
+				echo('					<span class="currency_label">USD:</span>' . PHP_EOL);
+				echo('					<span class="currency_data">' . money_format('%4.5i', $usdaud) . '</span>' . PHP_EOL);
 				echo('					<br/>' . PHP_EOL);
-				echo('					<span class="currency">EUR: ' . money_format('%2.5i', $euraud) . '</span>' . PHP_EOL);
+				echo('					<span class="currency_label">EUR:</span>' . PHP_EOL);
+				echo('					<span class="currency_data">' . money_format('%4.5i', $euraud) . '</span>' . PHP_EOL);
 				echo('					<br/>' . PHP_EOL);
-				echo('					<span class="currency">GBP: ' . money_format('%2.5i', $gbpaud) . '</span>' . PHP_EOL);
+				echo('					<span class="currency_label">GBP:</span>' . PHP_EOL);
+				echo('					<span class="currency_data">' . money_format('%4.5i', $gbpaud) . '</span>' . PHP_EOL);
 				echo('					<br/>' . PHP_EOL);
-				echo('					<span class="currency">CHF: ' . money_format('%2.5i', $chfaud) . '</span>' . PHP_EOL);
+				echo('					<span class="currency_label">CHF:</span>' . PHP_EOL);
+				echo('					<span class="currency_data">' . money_format('%4.5i', $chfaud) . '</span>' . PHP_EOL);
 				echo('					<br/>' . PHP_EOL);
-				echo('					<span class="currency">CAD: ' . money_format('%2.5i', $cadaud) . '</span>' . PHP_EOL);
+				echo('					<span class="currency_label">CAD:</span>' . PHP_EOL);
+				echo('					<span class="currency_data">' . money_format('%4.5i', $cadaud) . '</span>' . PHP_EOL);
 				echo('					<br/>' . PHP_EOL);
-				echo('					<span class="currency">NZD: ' . money_format('%2.5i', $nzdaud) . '</span>' . PHP_EOL);
+				echo('					<span class="currency_label">NZD:</span>' . PHP_EOL);
+				echo('					<span class="currency_data">' . money_format('%4.5i', $nzdaud) . '</span>' . PHP_EOL);
 				echo('					<br/>' . PHP_EOL);
-				echo('					<span class="currency">INR: ' . money_format('%2.5i', $inraud) . '</span>' . PHP_EOL);
+				echo('					<span class="currency_label">INR:</span>' . PHP_EOL);
+				echo('					<span class="currency_data">' . money_format('%4.5i', $inraud) . '</span>' . PHP_EOL);
 				echo('					<br/>' . PHP_EOL);
 				echo('				</div>' . PHP_EOL);
 				echo('			</div><!-- end //outer4 -->' . PHP_EOL);
 
-				// Commodities
+				// Stocks
 				echo('			<div id="outer5">' . PHP_EOL);
 				echo('				<div class="box1">' . PHP_EOL);
-				echo('					<h2 style="text-align: left; margin-left: -5px">Shares</h2>' . PHP_EOL);
+				echo('					<h2>Shares</h2>' . PHP_EOL);
+				echo('					<span class="currency_label">TSLA:</span>' . PHP_EOL);
+				echo('					<span class="currency_data">' . money_format('%4.2i', $tsla_out) . '</span>' . PHP_EOL);
+				echo('					<span class="currency_label">$US</span>' . PHP_EOL);
 				echo('					<br/>' . PHP_EOL);
 				echo('				</div>' . PHP_EOL);
 				echo('			</div><!-- end //outer5 -->' . PHP_EOL);
@@ -509,23 +539,19 @@
 				{
 					die("Connection failed: " . $conn->connect_error);
 				}
-
 				$country	= ip_info($_SERVER['REMOTE_ADDR'], 'country');
 				$address 	= ip_info($_SERVER['REMOTE_ADDR'], 'address');
 				$city		= ip_info($_SERVER['REMOTE_ADDR'], 'city');
 				$state		= ip_info($_SERVER['REMOTE_ADDR'], 'state');
 				$region		= ip_info($_SERVER['REMOTE_ADDR'], 'region');
-
 				if (strlen($country) <= 0)
-					$country = ip_info($_SERVER['HTTP_X_FORWARDED_FOR'], 'Country') ;
-
+					$country = ip_info($_SERVER['HTTP_X_FORWARDED_FOR'], 'Country');
 				$now = date('Y-m-d H:i:s');
 				$sql = "INSERT INTO palatine
 						(time_access, remote_addr, http_x_forwarded_for, address, city, state, region, country) VALUES
 						('" .   $now	 . "', '" . $_SERVER['REMOTE_ADDR'] . "', '" . $_SERVER['HTTP_X_FORWARDED_FOR'] . "', '" .
 								$address . "', '" . $city				   . "', '" . $state . "', '" .
 								$region  . "', '" . $country . "')";
-
 				if ($conn->query($sql) === TRUE)
 				{
 					echo(PHP_EOL);
@@ -534,7 +560,6 @@
 				{
 					echo "Error: " . $sql . "<br>" . $conn->error;
 				}
-
 				$conn->close();
 			?>
 		</div> <!-- end //wrapper -->

@@ -155,14 +155,25 @@ span.time
 	display: inline-block;
 }
 
-span.currency
+span.currency_label
 {
 	text-align: left;
-	padding-left: 40px;
+	padding-left: 0px;
 	margin:  0px;
 	font-family: Arial,Helvetica Neue,Helvetica,sans-serif; 
 	font-size: 20px;
-	width: 180px;
+	width: 50px;
+	display: inline-block;
+}
+
+span.currency_data
+{
+	text-align: right;
+	padding-left: 10px;
+	margin:  0px;
+	font-family: "Lucida Console", Monaco, monospace; 
+	font-size: 20px;
+	width: 100px;
 	display: inline-block;
 }
 
