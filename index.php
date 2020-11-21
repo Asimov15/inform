@@ -9,9 +9,9 @@
 // 03/01/2018 Added Dash and removed BCH
 // 24/09/2020 Use different currency API: https://api.exchangeratesapi.io/
 // 27/09/2020 Add favicon
+// 21/11/2020 Fix BCH
 
 ?>
-
 <!DOCTYPE html PUBLIC '-//W3C//DTD XHTML 1.0 Strict//EN' 'http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd'>
 <html xmlns='http://www.w3.org/1999/xhtml' xml:lang='en'>
 
@@ -46,9 +46,7 @@
 						$return .= "Fatal Error $error->code: ";
 						break;
 				}
-				$return .= trim($error->message) .
-					"\n  Line: $error->line" .
-					"\n  Column: $error->column";
+				$return .= trim($error->message) . "\n  Line: $error->line" . "\n  Column: $error->column";
 
 				if ($error->file) 
 				{
