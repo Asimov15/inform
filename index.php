@@ -32,7 +32,7 @@
 		<?php
 			function display_xml_error($error)
 			{
-				$return = str_repeat('-', $error->column) . "^\n";
+				$return = str_repeat('-', $error->column) . "\n";
 
 				switch ($error->level) 
 				{
@@ -61,7 +61,7 @@
 				$file_name = "/var/www/html/temp/" . $commodity . ".html";
 				$command = "rm " . $file_name;
 				shell_exec($command);
-				$command = "wget -q -O " . $file_name . " " . $web_reference;
+				$command = "wget --read-timeout=5 --dns-timeout=5 --connect-timeout=5-q -O " . $file_name . " " . $web_reference;
 				shell_exec($command);
 				$doc = new DOMDocument();
 				libxml_use_internal_errors(true);
@@ -69,8 +69,10 @@
 				{
 					foreach (libxml_get_errors() as $error) 
 					{
+						echo('wget timeout!<br/>' . PHP_EOL);
 						echo(display_xml_error($error));
-						echo("\n");
+						echo(PHP_EOL);
+						echo('<br/>' . PHP_EOL);
 					}
 				};
 				libxml_use_internal_errors(false);
