@@ -61,7 +61,7 @@
 				$file_name = "/var/www/html/temp/" . $commodity . ".html";
 				$command = "rm " . $file_name;
 				shell_exec($command);
-				$command = "wget --read-timeout=5 --dns-timeout=5 --connect-timeout=5-q -O " . $file_name . " " . $web_reference;
+				$command = "wget --read-timeout=10 --dns-timeout=10 --connect-timeout=10 -q -O " . $file_name . " " . $web_reference;
 				shell_exec($command);
 				$doc = new DOMDocument();
 				libxml_use_internal_errors(true);
