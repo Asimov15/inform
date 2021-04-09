@@ -227,18 +227,25 @@
 			// FOREX
 			setlocale(LC_MONETARY, "en_US");
 			$params = new \stdClass();
-			$params->base = "AUD";
-			$params->symbols = "EUR,GBP,USD,CHF,CAD,NZD,INR";
-			$json = CallAPI('GET', 'https://api.exchangeratesapi.io/latest', $params , false);
+			$params->pairs = "AUDUSD,EURUSD,GBPUSD,NZDUSD,USDCHF,USDCAD,USDINR";
+			$json = CallAPI('GET', 'https://www.freeforexapi.com/api/live', $params , false);
 			$data = json_decode($json, TRUE);
-			$usdaud = $data["rates"]["USD"];
-			$gbpaud = $data["rates"]["GBP"];
-			$chfaud = $data["rates"]["CHF"];
-			$cadaud = $data["rates"]["CAD"];
-			$nzdaud = $data["rates"]["NZD"];
-			$euraud = $data["rates"]["EUR"];
-			$inraud = $data["rates"]["INR"];
-
+			//echo $data["rates"]["AUDUSD"];
+			$usdaud = $data["rates"]["AUDUSD"]["rate"];
+			$eurusd = $data["rates"]["EURUSD"]["rate"];
+			$gbpusd = $data["rates"]["GBPUSD"]["rate"];
+			$nzdusd = $data["rates"]["NZDUSD"]["rate"];
+			$chfusd = $data["rates"]["USDCHF"]["rate"];
+			$cadusd = $data["rates"]["USDCAD"]["rate"];
+			$inrusd = $data["rates"]["USDINR"]["rate"];
+			
+			$euraud = $usdaud / $eurusd;
+			$gbpaud = $usdaud / $gbpusd;
+			$nzdaud = $usdaud / $nzdusd;
+			$chfaud = $usdaud * $chfusd;
+			$cadaud = $usdaud * $cadusd;
+			$inraud = $usdaud * $inrusd;
+			
 			// Crypto
 
 			// BTC_USD
