@@ -10,6 +10,8 @@
 // 24/09/2020 Use different currency API: https://api.exchangeratesapi.io/
 // 27/09/2020 Add favicon
 // 21/11/2020 Fix BCH
+// 26/12/2023 Replace money format function with number format 
+//            fix favicon
 
 ?>
 <!DOCTYPE html PUBLIC '-//W3C//DTD XHTML 1.0 Strict//EN' 'http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd'>
@@ -19,7 +21,7 @@
 		<meta http-equiv="Content-Type" content="text/html;charset=utf-8"/>
 		<meta http-equiv="refresh" content="1200"/>
 		<link rel="stylesheet" type="text/css" href="inform.css?version=1.5"/>
-		<link rel="icon" href="http://davidzuccaro.com.au/images/infoicon.jpg"/>
+		<link rel="icon" href="http://198.199.72.243/images/infoicon.jpg"/>
 		<title>David's Information</title>
 	</head>
 
@@ -209,6 +211,9 @@
 
 				curl_setopt($curl, CURLOPT_URL, $url);
 				curl_setopt($curl, CURLOPT_RETURNTRANSFER, 1);
+				
+				curl_setopt($curl, CURLOPT_SSL_VERIFYHOST, 0); // 0 to disable host verification
+				curl_setopt($curl, CURLOPT_SSL_VERIFYPEER, 0); // 0 to not verify peer
 
 				$result = curl_exec($curl);
 
@@ -225,26 +230,78 @@
 			$four_spaces = '&nbsp;&nbsp;&nbsp;&nbsp;';
 
 			// FOREX
-			setlocale(LC_MONETARY, "en_US");
-			$params = new \stdClass();
-			$params->pairs = "AUDUSD,EURUSD,GBPUSD,NZDUSD,USDCHF,USDCAD,USDINR";
-			$json = CallAPI('GET', 'https://www.freeforexapi.com/api/live', $params , false);
-			$data = json_decode($json, TRUE);
-			//echo $data["rates"]["AUDUSD"];
-			$usdaud = $data["rates"]["AUDUSD"]["rate"];
-			$eurusd = $data["rates"]["EURUSD"]["rate"];
-			$gbpusd = $data["rates"]["GBPUSD"]["rate"];
-			$nzdusd = $data["rates"]["NZDUSD"]["rate"];
-			$chfusd = $data["rates"]["USDCHF"]["rate"];
-			$cadusd = $data["rates"]["USDCAD"]["rate"];
-			$inrusd = $data["rates"]["USDINR"]["rate"];
 			
-			$euraud = $usdaud / $eurusd;
-			$gbpaud = $usdaud / $gbpusd;
-			$nzdaud = $usdaud / $nzdusd;
-			$chfaud = $usdaud * $chfusd;
-			$cadaud = $usdaud * $cadusd;
-			$inraud = $usdaud * $inrusd;
+			function GetForex($currency)
+			{
+				setlocale(LC_ALL, "en_US");
+
+				$curl = curl_init();
+
+				curl_setopt_array($curl, [
+					CURLOPT_URL => 
+					"https://api.twelvedata.com/exchange_rate?symbol=AUD/" . $currency . "&apikey=5b94a27a1510460b90431b961174d5c1",
+					CURLOPT_RETURNTRANSFER => true,
+					CURLOPT_SSL_VERIFYHOST => 0,
+					CURLOPT_SSL_VERIFYPEER => 0,					
+					CURLOPT_ENCODING => "",
+					CURLOPT_MAXREDIRS => 10,
+					CURLOPT_TIMEOUT => 30,
+					CURLOPT_HTTP_VERSION => CURL_HTTP_VERSION_1_1,
+					CURLOPT_CUSTOMREQUEST => "GET",
+					CURLOPT_HTTPHEADER => [
+						"X-RapidAPI-Host: twelve-data1.p.rapidapi.com",
+						"X-RapidAPI-Key: f4822a10bdmsh1ea92c3e50995a4p114ccdjsn5765c48aad9f"
+					],
+				]);
+
+				$response = curl_exec($curl);
+				$err = curl_error($curl);
+
+				curl_close($curl);
+
+				if ($err) 
+				{
+					echo "cURL Error #:" . $err;
+				} 
+				else 
+				{
+					// echo $response;
+					$data = json_decode($response, TRUE);
+				}
+				return $data;
+			}			
+			
+			$rate = GetForex("USD");
+			
+			$usdaud = $rate["rate"];
+			
+			$rate = GetForex("EUR");
+			
+			$euraud = $rate["rate"];
+			
+			$rate = GetForex("GBP");
+			
+			$gbpaud = $rate["rate"];
+			
+			$rate = GetForex("CHF");
+			
+			$chfaud = $rate["rate"];
+			
+			$rate = GetForex("CAD");
+			
+			$cadaud = $rate["rate"];
+			
+			$rate = GetForex("NZD");			
+			
+			$nzdaud = $rate["rate"];
+			
+			$rate = GetForex("INR");
+			
+			$inraud = $rate["rate"];
+			
+			$rate = GetForex("RUB");
+			
+			$rubaud = $rate["rate"];			
 			
 			// Crypto
 
@@ -265,59 +322,61 @@
 			$btc_bch = $data_south_exchange["Last"];
 			$aud_bch = $btc_bch * $btc_price_aud;
 
-			$json = CallAPI('GET', 'https://poloniex.com/public?command=returnTicker', false, false);
-			$data_poloniex = json_decode($json, TRUE);
-
-			//Dash
-			$btc_dash = $data_poloniex["BTC_DASH"]["last"];
+			//DASH
+			$json = CallAPI('GET', 'https://www.southxchange.com/api/price/DASH/BTC', false, false);
+			$data_south_exchange = json_decode($json, TRUE);
+			$btc_dash = $data_south_exchange["Last"];
 			$aud_dash = $btc_dash * $btc_price_aud;
-
+			
 			//ETH
-			$btc_eth = $data_poloniex["BTC_ETH"]["last"];
-			$aud_eth = $btc_eth * $btc_price_aud;
-
+			$json = CallAPI('GET', 'https://www.southxchange.com/api/price/ETH/BTC', false, false);
+			$data_south_exchange = json_decode($json, TRUE);
+			$btc_eth = $data_south_exchange["Last"];
+			$aud_eth = $btc_eth * $btc_price_aud;			
+			
 			//BCHSV
-			$btc_bchsv = $data_poloniex["BTC_BCHSV"]["last"];
-			$aud_bchsv = $btc_bchsv * $btc_price_aud;
-
-			//BCHEOS
-			$btc_eos = $data_poloniex["BTC_EOS"]["last"];
-			$aud_eos = $btc_eos * $btc_price_aud;
-
+			$json        = CallAPI('GET', 'https://api.diadata.org/v1/assetQuotation/BitcoinSV/0x0000000000000000000000000000000000000000', false, false);
+			$diadata_bchsv = json_decode($json, TRUE);
+			$usd_bchsv     = $diadata_bchsv["Price"];
+			$aud_bchsv   = $usd_bchsv / $usdaud;
+			
+			//Solana
+			$json        = CallAPI('GET', 'https://api.diadata.org/v1/assetQuotation/Solana/0x0000000000000000000000000000000000000000', false, false);
+			$diadata_solana = json_decode($json, TRUE);
+			$usd_solana     = $diadata_solana["Price"];
+			$aud_solana   = $usd_solana / $usdaud;			
+			
 			// Precious Metals
+	
 			// Gold
-
-			$gold_url = 'http://goldpricez.com/api/rates/currency/usd/measure/all';
-			$gold_json = CallAPI('GET', $gold_url, false, '352b69e93c5a43d513e4db1e4803019f352b69e9');
-			$gd = str_replace("\\", "", $gold_json);
-			$gd = substr($gd, 1, -1);
-			$gold_data = json_decode($gd, TRUE);
-			$gold_aud = $gold_data["ounce_price_usd"] / $usdaud;
-
-			// Silver
-			$silver_usd = get_commodity_price("silver", "http://www.kitco.com/charts/livesilver.html", "//*[@id='sp-bid']");
-			$silver_aud = $silver_usd / $usdaud;
-			$silver_out_oz =  money_format('%7.2i', $silver_aud);
+			$gold = get_commodity_price("gold", "https://markets.businessinsider.com/commodities/gold-price", "//*[@class='price-section__current-value']");
+			$gold_aud = $gold / $usdaud;
+			$gold_aud_out = number_format(floatval($gold_aud), 2, '.', '');
+			
+			// silver
+			$silver = get_commodity_price("silver", "https://markets.businessinsider.com/commodities/silver-price", "//*[@class='price-section__current-value']");
+			$silver_aud = $silver / $usdaud;
+			$silver_aud_out = number_format(floatval($silver_aud), 2, '.', '');
 			
 			// Paladium
-			$paladium  = get_commodity_price("paladium", "https://markets.businessinsider.com/commodities/palladium-price", "//*[@class='price-section__current-value']");
-			$paladium_out = money_format('%7.2i', $paladium);
-			
+			$paladium = get_commodity_price("paladium", "https://markets.businessinsider.com/commodities/palladium-price", "//*[@class='price-section__current-value']");
+			$paladium_out = number_format(floatval($paladium), 2, '.', '');
+
 			// Brent Crude
 			$brent_usd = get_commodity_price("brent", "https://markets.businessinsider.com/commodities/oil-price", "//*[@class='price-section__current-value']");
-			$brent_out = money_format('%7.2i', $brent_usd);
-			
+			$brent_out = number_format(floatval($brent_usd), 2, '.', '');
+
 			// Ethanol
 			$ethanol_usd = get_commodity_price("ethanol", "https://markets.businessinsider.com/commodities/ethanol-price", "//*[@class='price-section__current-value']");
-			$ethanol_out = money_format('%7.2i', $ethanol_usd);
-			
+			$ethanol_out = number_format(floatval($ethanol_usd), 2, '.', '');
+
 			// Lean Hog
-			$lean_hog  = get_commodity_price("lean-hog", "https://markets.businessinsider.com/commodities/lean-hog-price", "//*[@class='price-section__current-value']");
-			$lean_hog_out = money_format('%7.2i', $lean_hog);
+			$lean_hog = get_commodity_price("lean-hog", "https://markets.businessinsider.com/commodities/lean-hog-price", "//*[@class='price-section__current-value']");
+			$lean_hog_out = number_format(floatval($lean_hog), 2, '.', '');
 
 			// TSLA
-			$tsla  = get_commodity_price("tsla", "https://markets.businessinsider.com/stocks/tsla-stock", "//*[@class='price-section__current-value']");
-			$tsla_out = money_format('%7.2i', $tsla);
+			$tsla = get_commodity_price("tsla", "https://markets.businessinsider.com/stocks/tsla-stock", "//*[@class='price-section__current-value']");
+			$tsla_out = number_format(floatval($tsla), 2, '.', '');
 
 			// AMZN
 			$amzn  = get_commodity_price("amzn", "https://markets.businessinsider.com/stocks/amzn-stock", "//*[@class='price-section__current-value']");
@@ -329,11 +388,16 @@
 				$amzn = $b;
 			}
 			
-			$amzn_out = money_format('%7.2i', $amzn);
+			// NVDA
+			$nvda = get_commodity_price("nvda", "https://markets.businessinsider.com/stocks/nvda-stock", "//*[@class='price-section__current-value']");
+			$nvda_out = number_format(floatval($nvda), 2, '.', '');
+			
+			// Assuming $amzn is already defined earlier in your code
+			$amzn_out = number_format(floatval($amzn), 2, '.', '');
 
 			// MSFT
-			$msft  = get_commodity_price("msft", "https://markets.businessinsider.com/stocks/msft-stock", "//*[@class='price-section__current-value']");
-			$msft_out = money_format('%7.2i', $msft);
+			$msft = get_commodity_price("msft", "https://markets.businessinsider.com/stocks/msft-stock", "//*[@class='price-section__current-value']");
+			$msft_out = number_format(floatval($msft), 2, '.', '');
 
 			echo('			<div id="outer1">' . PHP_EOL);
 
@@ -402,53 +466,39 @@
 			echo('					</h2>' . PHP_EOL);
 
 			// BTC
-			echo('					<span class="crypto">BTC:</span>');
-			echo(PHP_EOL);
-			echo('					<span class="cryptod">' . money_format('%9.2i', floatval($btc_price_aud)) . $four_spaces . '</span>');
-			echo(PHP_EOL);
-			echo('					<br/>' . PHP_EOL);
+			echo('<span class="crypto">BTC:</span>' . PHP_EOL);
+			echo('<span class="cryptod">' . number_format(floatval($btc_price_aud), 2, '.', '') . $four_spaces . '</span>' . PHP_EOL);
+			echo('<br/>' . PHP_EOL);
 
-			//GRC
-			echo('					<span class="crypto">GRC:</span>');
-			echo(PHP_EOL);
-			echo('					<span class="cryptod">' . money_format('%9.6i', $aud_grc) . '</span>');
-			echo(PHP_EOL);
-			echo('					<br/>' . PHP_EOL);
+			// GRC
+			echo('<span class="crypto">GRC:</span>' . PHP_EOL);
+			echo('<span class="cryptod">' . number_format(floatval($aud_grc), 6, '.', '') . '</span>' . PHP_EOL);
+			echo('<br/>' . PHP_EOL);
 
-			//DASH
-			echo('					<span class="crypto">DASH:</span>');
-			echo(PHP_EOL);
-			echo('					<span class="cryptod">' . money_format('%9.2i', $aud_dash) . $four_spaces . '</span>');
-			echo(PHP_EOL);
-			echo('					<br/>' . PHP_EOL);
+			// DASH
+			echo('<span class="crypto">DASH:</span>' . PHP_EOL);
+			echo('<span class="cryptod">' . number_format(floatval($aud_dash), 2, '.', '') . $four_spaces . '</span>' . PHP_EOL);
+			echo('<br/>' . PHP_EOL);
 
-			//ETH
-			echo('					<span class="crypto">ETH:</span>');
-			echo(PHP_EOL);
-			echo('					<span class="cryptod">' . money_format('%9.2i', $aud_eth) . $four_spaces . '</span>');
-			echo(PHP_EOL);
-			echo('					<br/>' . PHP_EOL);
+			// ETH
+			echo('<span class="crypto">ETH:</span>' . PHP_EOL);
+			echo('<span class="cryptod">' . number_format(floatval($aud_eth), 2, '.', '') . $four_spaces . '</span>' . PHP_EOL);
+			echo('<br/>' . PHP_EOL);
 
-			//BCHSV
-			echo('					<span class="crypto">BCHSV:</span>');
-			echo(PHP_EOL);
-			echo('					<span class="cryptod">' . money_format('%9.2i', $aud_bchsv) . $four_spaces . '</span>');
-			echo(PHP_EOL);
-			echo('					<br/>' . PHP_EOL);
+			// BCHSV
+			echo('<span class="crypto">BCHSV:</span>' . PHP_EOL);
+			echo('<span class="cryptod">' . number_format(floatval($aud_bchsv), 2, '.', '') . $four_spaces . '</span>' . PHP_EOL);
+			echo('<br/>' . PHP_EOL);
 
-			//BCH
-			echo('					<span class="crypto">BCH:</span>');
-			echo(PHP_EOL);
-			echo('					<span class="cryptod">' . money_format('%9.2i', $aud_bch) . $four_spaces . '</span>');
-			echo(PHP_EOL);
-			echo('					<br/>' . PHP_EOL);
+			// BCH
+			echo('<span class="crypto">BCH:</span>' . PHP_EOL);
+			echo('<span class="cryptod">' . number_format(floatval($aud_bch), 2, '.', '') . $four_spaces . '</span>' . PHP_EOL);
+			echo('<br/>' . PHP_EOL);
 
-			//EOS
-			echo('					<span class="crypto">EOS:</span>');
-			echo(PHP_EOL);
-			echo('					<span class="cryptod">' . money_format('%9.2i', $aud_eos) . $four_spaces . '</span>');
-			echo(PHP_EOL);
-			echo('					<br/>' . PHP_EOL);
+			// Solna
+			echo('<span class="crypto">Solana:</span>' . PHP_EOL);
+			echo('<span class="cryptod">' . number_format(floatval($aud_solana), 2, '.', '') . $four_spaces . '</span>' . PHP_EOL);
+			echo('<br/>' . PHP_EOL);
 
 			echo('				</div><!-- end box1 -->' . PHP_EOL);
 			echo('			</div><!-- end outer2 -->' . PHP_EOL);
@@ -465,12 +515,13 @@
 			echo('					<br/>' . PHP_EOL);
 
 			echo('					<span class="precious1">Gold:</span>'  . PHP_EOL);
-			echo('					<span class="precious2">' . money_format('%7.2i', $gold_aud  ) . '</span>' . PHP_EOL);
+			echo('                  <span class="precious2">' . number_format(floatval($gold_aud_out), 2, '.', '') . '</span>' . PHP_EOL);
+
 			echo('					<span class="precious3">$AUD/troy ounce</span>'  . PHP_EOL);
 			echo('					<br/>' . PHP_EOL);
 
 			echo('					<span class="precious1">Silver:</span>'  . PHP_EOL);
-			echo('					<span class="precious2">' . $silver_out_oz . '</span>' . PHP_EOL);
+			echo('					<span class="precious2">' . $silver_aud_out . '</span>' . PHP_EOL);
 			echo('					<span class="precious3">$AUD/troy ounce</span>'  . PHP_EOL);
 			echo('					<br/>' . PHP_EOL);
 
@@ -502,25 +553,28 @@
 			echo('					FOREX ($AUD)' . PHP_EOL);
 			echo('				</h2>' . PHP_EOL);
 			echo('					<span class="currency_label">USD:</span>' . PHP_EOL);
-			echo('					<span class="currency_data">' . money_format('%4.5i', $usdaud) . '</span>' . PHP_EOL);
-			echo('					<br/>' . PHP_EOL);
-			echo('					<span class="currency_label">EUR:</span>' . PHP_EOL);
-			echo('					<span class="currency_data">' . money_format('%4.5i', $euraud) . '</span>' . PHP_EOL);
-			echo('					<br/>' . PHP_EOL);
-			echo('					<span class="currency_label">GBP:</span>' . PHP_EOL);
-			echo('					<span class="currency_data">' . money_format('%4.5i', $gbpaud) . '</span>' . PHP_EOL);
-			echo('					<br/>' . PHP_EOL);
-			echo('					<span class="currency_label">CHF:</span>' . PHP_EOL);
-			echo('					<span class="currency_data">' . money_format('%4.5i', $chfaud) . '</span>' . PHP_EOL);
-			echo('					<br/>' . PHP_EOL);
-			echo('					<span class="currency_label">CAD:</span>' . PHP_EOL);
-			echo('					<span class="currency_data">' . money_format('%4.5i', $cadaud) . '</span>' . PHP_EOL);
-			echo('					<br/>' . PHP_EOL);
-			echo('					<span class="currency_label">NZD:</span>' . PHP_EOL);
-			echo('					<span class="currency_data">' . money_format('%4.5i', $nzdaud) . '</span>' . PHP_EOL);
-			echo('					<br/>' . PHP_EOL);
-			echo('					<span class="currency_label">INR:</span>' . PHP_EOL);
-			echo('					<span class="currency_data">' . money_format('%4.5i', $inraud) . '</span>' . PHP_EOL);
+			echo('                  <span class="currency_data">' . number_format(floatval($usdaud), 5, '.', '') . '</span>' . PHP_EOL);
+			echo('                  <br/>' . PHP_EOL);
+            echo('                  <span class="currency_label">EUR:</span>' . PHP_EOL);
+			echo('                  <span class="currency_data">' . number_format(floatval($euraud), 5, '.', '') . '</span>' . PHP_EOL);
+			echo('                  <br/>' . PHP_EOL);
+			echo('                  <span class="currency_label">GBP:</span>' . PHP_EOL);
+            echo('                  <span class="currency_data">' . number_format(floatval($gbpaud), 5, '.', '') . '</span>' . PHP_EOL);
+            echo('                  <br/>' . PHP_EOL);
+			echo('                  <span class="currency_label">CHF:</span>' . PHP_EOL);
+            echo('                  <span class="currency_data">' . number_format(floatval($chfaud), 5, '.', '') . '</span>' . PHP_EOL);
+			echo('                  <br/>' . PHP_EOL);
+			echo('                  <span class="currency_label">CAD:</span>' . PHP_EOL);
+			echo('                  <span class="currency_data">' . number_format(floatval($cadaud), 5, '.', '') . '</span>' . PHP_EOL);
+			echo('                  <br/>' . PHP_EOL);
+			echo('                  <span class="currency_label">NZD:</span>' . PHP_EOL);
+			echo('                  <span class="currency_data">' . number_format(floatval($nzdaud), 5, '.', '') . '</span>' . PHP_EOL);
+			echo('                  <br/>' . PHP_EOL);
+			echo('                  <span class="currency_label">INR:</span>' . PHP_EOL);
+			echo('                  <span class="currency_data">' . number_format(floatval($inraud), 5, '.', '') . '</span>' . PHP_EOL);
+			echo('                  <br/>' . PHP_EOL);
+			echo('					<span class="currency_label">RUB:</span>' . PHP_EOL); 
+			echo('                  <span class="currency_data">' . number_format(floatval($rubaud), 5, '.', '') . '</span>' . PHP_EOL);
 			echo('					<br/>' . PHP_EOL);
 			echo('				</div>' . PHP_EOL);
 			echo('			</div><!-- end //outer4 -->' . PHP_EOL);
@@ -541,67 +595,20 @@
 			echo('					<span class="currency_data">' . $msft_out . '</span>' . PHP_EOL);
 			echo('					<span class="currency_label">$US</span>' . PHP_EOL);
 			echo('					<br/>' . PHP_EOL);
+			echo('					<span class="currency_label">NVDA:</span>' . PHP_EOL);
+			echo('					<span class="currency_data">' . $nvda_out . '</span>' . PHP_EOL);
+			echo('					<span class="currency_label">$US</span>' . PHP_EOL);
+			echo('					<br/>' . PHP_EOL);
 			echo('				</div>' . PHP_EOL);
 			echo('			</div><!-- end //outer5 -->' . PHP_EOL);
 			echo('			<div id="footer">' . PHP_EOL);
 			echo('			<div class="box2">' . PHP_EOL);
-			echo('				<div class="footer2">' . PHP_EOL);
-			echo('					<span>Powered by <a href="https://www.coindesk.com/price/">CoinDesk</a></span>' . PHP_EOL);
-			echo('					<a href="http://goldpricez.com">Gold rates by <img alt="Gold Price Data" src="http://goldpricez.com/assets/logo.jpg" height="20"/></a>' . PHP_EOL);
+			echo('				<div class="footer2">' . PHP_EOL);			
 			echo('		  		  <a href="http://jigsaw.w3.org/css-validator/check/referer"><img style="border:0;width:89px;height:31px" src="http://jigsaw.w3.org/css-validator/images/vcss" alt="Valid CSS!" /></a>' . PHP_EOL);
-			echo('	  	   		  <a href="http://validator.w3.org/check?uri=referer"><img src="http://www.w3.org/Icons/valid-xhtml10" alt="Valid XHTML 1.0 Strict" height="31" width="89" /></a>' . PHP_EOL);
-
-			if ($silver_error != 0)
-			{
-				echo('<br/>' . PHP_EOL);
-				if ($silver_error == 4)
-				{
-					echo('Network Error Accessing Silver Price Web Page' . PHP_EOL);
-				}
-				else
-				{
-					echo('Silver Error Code: ' . $silver_error . PHP_EOL);
-				}
-			}
+			echo('	  	   		  <a href="http://validator.w3.org/check?uri=referer"><img src="http://www.w3.org/Icons/valid-xhtml10" alt="Valid XHTML 1.0 Strict" height="31" width="89" /></a>' . PHP_EOL);			
 			echo('				</div>' . PHP_EOL);
 			echo('			</div>' . PHP_EOL);
-			echo('		</div>' . PHP_EOL);
-
-			$servername = "127.0.0.1";
-			$username = "julius";
-			$password = "happy1";
-			$dbname = "rome";
-
-			// Create connection
-			$conn = new mysqli($servername, $username, $password, $dbname);
-
-			// Check connection
-			if ($conn->connect_error)
-			{
-				die("Connection failed: " . $conn->connect_error);
-			}
-			$country	= ip_info($_SERVER['REMOTE_ADDR'], 'country');
-			$address 	= ip_info($_SERVER['REMOTE_ADDR'], 'address');
-			$city		= ip_info($_SERVER['REMOTE_ADDR'], 'city');
-			$state		= ip_info($_SERVER['REMOTE_ADDR'], 'state');
-			$region		= ip_info($_SERVER['REMOTE_ADDR'], 'region');
-			if (strlen($country) <= 0)
-				$country = ip_info($_SERVER['HTTP_X_FORWARDED_FOR'], 'Country');
-			$now = date('Y-m-d H:i:s');
-			$sql = "INSERT INTO palatine
-					(time_access, remote_addr, http_x_forwarded_for, address, city, state, region, country) VALUES
-					('" .   $now	 . "', '" . $_SERVER['REMOTE_ADDR'] . "', '" . $_SERVER['HTTP_X_FORWARDED_FOR'] . "', '" .
-							$address . "', '" . $city				   . "', '" . $state . "', '" .
-							$region  . "', '" . $country . "')";
-			if ($conn->query($sql) === TRUE)
-			{
-				echo(PHP_EOL);
-			}
-			else
-			{
-				echo "Error: " . $sql . "<br>" . $conn->error;
-			}
-			$conn->close();
+			echo('		</div>' . PHP_EOL);			
 		?>
 		</div> <!-- end //wrapper -->
 	</body>
