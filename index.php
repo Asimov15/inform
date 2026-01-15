@@ -227,337 +227,294 @@
 				return $result;
 			}
 
-			// -----------------------------
-			// Fast concurrent HTTP helpers
-			// -----------------------------
-
-			function _cache_get($key, $ttl_seconds)
-			{
-				if ($ttl_seconds <= 0) { return NULL; }
-				$file = sys_get_temp_dir() . "/php_http_cache_" . $key . ".json";
-				if (!file_exists($file)) { return NULL; }
-				if ((time() - filemtime($file)) > $ttl_seconds) { return NULL; }
-				$raw = @file_get_contents($file);
-				if ($raw === FALSE) { return NULL; }
-				$decoded = json_decode($raw, TRUE);
-				return is_array($decoded) ? $decoded : NULL;
-			}
-
-			function _cache_set($key, $data, $ttl_seconds)
-			{
-				if ($ttl_seconds <= 0) { return; }
-				$file = sys_get_temp_dir() . "/php_http_cache_" . $key . ".json";
-				@file_put_contents($file, json_encode($data));
-			}
-
-			function MultiCallAPI($requests, $timeout_seconds = 12, $connect_timeout_seconds = 4, $cache_ttl_seconds = 60)
-			// $requests: associative array key => ["url" => "...", "headers" => ["Header: value", ...]]
-			{
-				$cache_key = md5(json_encode($requests) . "|" . $timeout_seconds . "|" . $connect_timeout_seconds);
-				$cached = _cache_get($cache_key, $cache_ttl_seconds);
-				if ($cached !== NULL) { return $cached; }
-
-				$mh = curl_multi_init();
-				$handles = [];
-				$results = [];
-
-				foreach ($requests as $key => $req)
-				{
-					$ch = curl_init();
-					curl_setopt($ch, CURLOPT_URL, $req["url"]);
-					curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-					curl_setopt($ch, CURLOPT_FOLLOWLOCATION, true);
-					curl_setopt($ch, CURLOPT_MAXREDIRS, 5);
-					curl_setopt($ch, CURLOPT_TIMEOUT, $timeout_seconds);
-					curl_setopt($ch, CURLOPT_CONNECTTIMEOUT, $connect_timeout_seconds);
-					curl_setopt($ch, CURLOPT_ENCODING, ""); // gzip/deflate
-					curl_setopt($ch, CURLOPT_USERAGENT, "Mozilla/5.0 (X11; Linux x86_64) PHP-curl/fastfetch");
-					curl_setopt($ch, CURLOPT_SSL_VERIFYHOST, 0);
-					curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, 0);
-
-					if (isset($req["headers"]) && is_array($req["headers"]) && count($req["headers"]) > 0)
-					{
-						curl_setopt($ch, CURLOPT_HTTPHEADER, $req["headers"]);
-					}
-
-					curl_multi_add_handle($mh, $ch);
-					$handles[$key] = $ch;
-				}
-
-				$running = NULL;
-				do
-				{
-					$mrc = curl_multi_exec($mh, $running);
-					if ($running)
-					{
-						curl_multi_select($mh, 0.5);
-					}
-				} while ($running && $mrc == CURLM_OK);
-
-				foreach ($handles as $key => $ch)
-				{
-					$body = curl_multi_getcontent($ch);
-					$err  = curl_error($ch);
-					$code = curl_getinfo($ch, CURLINFO_RESPONSE_CODE);
-
-					$results[$key] = [
-						"body" => $body,
-						"error" => $err,
-						"http_code" => $code
-					];
-
-					curl_multi_remove_handle($mh, $ch);
-					curl_close($ch);
-				}
-
-				curl_multi_close($mh);
-
-				_cache_set($cache_key, $results, $cache_ttl_seconds);
-				return $results;
-			}
-
-			function extract_xpath_value_from_html($html, $xpath_query)
-			{
-				if ($html === NULL || $html === FALSE || strlen($html) < 10) { return ""; }
-				$doc = new DOMDocument();
-				libxml_use_internal_errors(true);
-				@$doc->loadHTML($html);
-				$xpath = new DOMXpath($doc);
-				$elements = $xpath->query($xpath_query);
-				$out = "";
-				if (!is_null($elements))
-				{
-					foreach ($elements as $element)
-					{
-						$nodes = $element->childNodes;
-						foreach ($nodes as $node)
-						{
-							$out = $node->nodeValue;
-						}
-					}
-				}
-				return $out;
-			}
-
-			function normalize_number($s)
-			{
-				$s = trim($s);
-				$s = str_replace([",", "$", "€", "£", "AUD", "USD"], "", $s);
-				$s = preg_replace("/[^0-9\.\-]/", "", $s);
-				if ($s === "" || $s === "-" || $s === ".") { return 0.0; }
-				return floatval($s);
-			}
-
-
 			$four_spaces = '&nbsp;&nbsp;&nbsp;&nbsp;';
 
 			// FOREX
 			
 			function GetForex($currency)
 			{
-				setlocale(LC_ALL, "en_US");
+				// Free FX rates, no API key (ExchangeRate-API open endpoint).
+				// Returns a compatible array with ["rate"] matching the old TwelveData shape.
+				$currency = strtoupper(trim($currency));
+				$cache_file = __DIR__ . "/cache_fx_AUD.json";
+				$cache_ttl  = 60 * 60; // 1 hour
 
-				$curl = curl_init();
-
-				curl_setopt_array($curl, [
-					CURLOPT_URL => 
-					"https://api.twelvedata.com/exchange_rate?symbol=AUD/" . $currency . "&apikey=5b94a27a1510460b90431b961174d5c1",
-					CURLOPT_RETURNTRANSFER => true,
-					CURLOPT_SSL_VERIFYHOST => 0,
-					CURLOPT_SSL_VERIFYPEER => 0,					
-					CURLOPT_ENCODING => "",
-					CURLOPT_MAXREDIRS => 10,
-					CURLOPT_TIMEOUT => 30,
-					CURLOPT_HTTP_VERSION => CURL_HTTP_VERSION_1_1,
-					CURLOPT_CUSTOMREQUEST => "GET",
-					CURLOPT_HTTPHEADER => [
-						"X-RapidAPI-Host: twelve-data1.p.rapidapi.com",
-						"X-RapidAPI-Key: f4822a10bdmsh1ea92c3e50995a4p114ccdjsn5765c48aad9f"
-					],
-				]);
-
-				$response = curl_exec($curl);
-				$err = curl_error($curl);
-
-				curl_close($curl);
-
-				if ($err) 
-				{
-					echo "cURL Error #:" . $err;
-				} 
-				else 
-				{
-					// echo $response;
-					$data = json_decode($response, TRUE);
+				$data = null;
+				if (file_exists($cache_file) && (time() - filemtime($cache_file) < $cache_ttl)) {
+					$raw = @file_get_contents($cache_file);
+					if ($raw !== false) $data = json_decode($raw, true);
 				}
-				return $data;
-			}			
-			
-			
-			// -----------------------------
-			// Forex (parallel)
-			// -----------------------------
-			$forex_currencies = ["USD","EUR","GBP","CHF","CAD","NZD","INR","RUB"];
-			$forex_requests = [];
-			foreach ($forex_currencies as $ccy)
-			{
-				$forex_requests[$ccy] = [
-					"url" => "https://api.twelvedata.com/exchange_rate?symbol=AUD/" . $ccy . "&apikey=5b94a27a1510460b90431b961174d5c1",
-					"headers" => []
+
+				if (!is_array($data) || !isset($data["rates"])) {
+					$ch = curl_init("https://open.er-api.com/v6/latest/AUD");
+					curl_setopt_array($ch, [
+						CURLOPT_RETURNTRANSFER => true,
+						CURLOPT_FOLLOWLOCATION => true,
+						CURLOPT_CONNECTTIMEOUT => 3,
+						CURLOPT_TIMEOUT => 8,
+						CURLOPT_SSL_VERIFYHOST => 2,
+						CURLOPT_SSL_VERIFYPEER => 1,
+						CURLOPT_USERAGENT => "Mozilla/5.0 (compatible; Inform/1.0)"
+					]);
+					$raw = curl_exec($ch);
+					curl_close($ch);
+
+					$tmp = json_decode($raw ?: "", true);
+					if (is_array($tmp) && isset($tmp["rates"])) {
+						$data = $tmp;
+						@file_put_contents($cache_file, json_encode($data));
+					}
+				}
+
+				$rate = null;
+				if (is_array($data) && isset($data["rates"][$currency])) {
+					$rate = (float)$data["rates"][$currency];
+				}
+
+				return [
+					"symbol" => "AUD/" . $currency,
+					"rate" => $rate
 				];
 			}
 
-			$forex_results = MultiCallAPI($forex_requests, 12, 4, 60);
-
-			// Defaults, in case any one API call fails
-			$usdaud = 0; $euraud = 0; $gbpaud = 0; $chfaud = 0; $cadaud = 0; $nzdaud = 0; $inraud = 0; $rubaud = 0;
-
-			foreach ($forex_results as $ccy => $res)
-			{
-				if ($res["error"] == "" && $res["http_code"] >= 200 && $res["http_code"] < 300)
-				{
-					$data = json_decode($res["body"], TRUE);
-					if (is_array($data) && isset($data["rate"]))
-					{
-						switch ($ccy)
-						{
-							case "USD": $usdaud = $data["rate"]; break;
-							case "EUR": $euraud = $data["rate"]; break;
-							case "GBP": $gbpaud = $data["rate"]; break;
-							case "CHF": $chfaud = $data["rate"]; break;
-							case "CAD": $cadaud = $data["rate"]; break;
-							case "NZD": $nzdaud = $data["rate"]; break;
-							case "INR": $inraud = $data["rate"]; break;
-							case "RUB": $rubaud = $data["rate"]; break;
-						}
-					}
-				}
-			}
-
-
-			// -----------------------------
-			// Crypto (parallel)
-			// -----------------------------
-			$crypto_requests = [
-				"BTC"   => ["url" => "https://api.diadata.org/v1/assetQuotation/Bitcoin/0x0000000000000000000000000000000000000000",   "headers" => []],
-				"DASH"  => ["url" => "https://api.diadata.org/v1/assetQuotation/Dash/0x0000000000000000000000000000000000000000",      "headers" => []],
-				"ETH"   => ["url" => "https://api.diadata.org/v1/assetQuotation/Ethereum/0x0000000000000000000000000000000000000000",   "headers" => []],
-				"BSV"   => ["url" => "https://api.diadata.org/v1/assetQuotation/BitcoinSV/0x0000000000000000000000000000000000000000", "headers" => []],
-				"SOL"   => ["url" => "https://api.diadata.org/v1/assetQuotation/Solana/0x0000000000000000000000000000000000000000",     "headers" => []],
-				"XMR"   => ["url" => "https://api.diadata.org/v1/assetQuotation/Monero/0x0000000000000000000000000000000000000000",     "headers" => []],
-			];
-
-			$crypto_results = MultiCallAPI($crypto_requests, 12, 4, 60);
-
-			$usd_bitcoin = 0; $aud_bitcoin = 0;
-			$usd_dash = 0;   $aud_dash = 0;
-			$usd_ethereum = 0; $aud_ethereum = 0;
-			$usd_bsv = 0;    $aud_bsv = 0;
-			$usd_solana = 0; $aud_solana = 0;
-			$usd_monero = 0; $aud_monero = 0;
-
-			foreach ($crypto_results as $sym => $res)
-			{
-				if ($res["error"] == "" && $res["http_code"] >= 200 && $res["http_code"] < 300)
-				{
-					$data = json_decode($res["body"], TRUE);
-					if (is_array($data) && isset($data["Price"]))
-					{
-						$usd = $data["Price"];
-						$aud = ($usdaud > 0) ? ($usd / $usdaud) : 0;
-
-						switch ($sym)
-						{
-							case "BTC":  $usd_bitcoin = $usd;   $aud_bitcoin = $aud; break;
-							case "DASH": $usd_dash = $usd;      $aud_dash = $aud; break;
-							case "ETH":  $usd_ethereum = $usd;  $aud_ethereum = $aud; break;
-							case "BSV":  $usd_bsv = $usd;       $aud_bsv = $aud; break;
-							case "SOL":  $usd_solana = $usd;    $aud_solana = $aud; break;
-							case "XMR":  $usd_monero = $usd;    $aud_monero = $aud; break;
-						}
-					}
-				}
-			}
-
-
-			// -----------------------------
-			// Commodities + stocks (parallel HTML fetch + XPath)
-			// -----------------------------
-			$bi_pages = [
-				"gold" => ["url" => "https://markets.businessinsider.com/commodities/gold-price", "xpath" => "//*[@class='price-section__current-value']", "headers" => []],
-				"silver" => ["url" => "https://markets.businessinsider.com/commodities/silver-price", "xpath" => "//*[@class='price-section__current-value']", "headers" => []],
-				"palladium" => ["url" => "https://markets.businessinsider.com/commodities/palladium-price", "xpath" => "//*[@class='price-section__current-value']", "headers" => []],
-				"platinum" => ["url" => "https://markets.businessinsider.com/commodities/platinum-price", "xpath" => "//*[@class='price-section__current-value']", "headers" => []],
-				"brent" => ["url" => "https://markets.businessinsider.com/commodities/oil-price", "xpath" => "//*[@class='price-section__current-value']", "headers" => []],
-				"ethanol" => ["url" => "https://markets.businessinsider.com/commodities/ethanol-price", "xpath" => "//*[@class='price-section__current-value']", "headers" => []],
-				"lean-hog" => ["url" => "https://markets.businessinsider.com/commodities/lean-hog-price", "xpath" => "//*[@class='price-section__current-value']", "headers" => []],
-				"tsla" => ["url" => "https://markets.businessinsider.com/stocks/tsla-stock", "xpath" => "//*[@class='price-section__current-value']", "headers" => []],
-				"amzn" => ["url" => "https://markets.businessinsider.com/stocks/amzn-stock", "xpath" => "//*[@class='price-section__current-value']", "headers" => []],
-				"nvda" => ["url" => "https://markets.businessinsider.com/stocks/nvda-stock", "xpath" => "//*[@class='price-section__current-value']", "headers" => []],
-				"msft" => ["url" => "https://markets.businessinsider.com/stocks/msft-stock", "xpath" => "//*[@class='price-section__current-value']", "headers" => []],
-			];
-
-			$bi_requests = [];
-			foreach ($bi_pages as $key => $cfg)
-			{
-				$bi_requests[$key] = ["url" => $cfg["url"], "headers" => $cfg["headers"]];
-			}
-
-			$bi_results = MultiCallAPI($bi_requests, 14, 5, 60);
-
-			$bi_values = [];
-			foreach ($bi_pages as $key => $cfg)
-			{
-				$html = (isset($bi_results[$key]) && $bi_results[$key]["error"] == "" && $bi_results[$key]["http_code"] >= 200 && $bi_results[$key]["http_code"] < 400)
-					? $bi_results[$key]["body"]
-					: "";
-				$raw = extract_xpath_value_from_html($html, $cfg["xpath"]);
-				$bi_values[$key] = normalize_number($raw);
-			}
-
-			// Precious Metals
-			$gold = $bi_values["gold"];
-			$gold_aud = ($usdaud > 0) ? ($gold / $usdaud) : 0;
-			$gold_aud_out = number_format(floatval($gold_aud), 2, '.', '');
-
-			$silver = $bi_values["silver"];
-			$silver_aud = ($usdaud > 0) ? ($silver / $usdaud) : 0;
-			$silver_aud_out = number_format(floatval($silver_aud), 2, '.', '');
-
-			$platinum = $bi_values["platinum"];
-			$platinum_aud = ($usdaud > 0) ? ($platinum / $usdaud) : 0;
-			$platinum_aud_out = number_format(floatval($platinum_aud), 2, '.', '');
+			// --- Alpha Vantage (ASX quotes) ---
+			// Set your key as an environment variable ALPHAVANTAGE_KEY, or hardcode below.
 			
-			$palladium = $bi_values["palladium"];
-			$palladium_aud = ($usdaud > 0) ? ($palladium / $usdaud) : 0;
-			$palladium_aud_out = number_format(floatval($palladium_aud), 2, '.', '');
+			if (!defined("ALPHAVANTAGE_KEY")) {
+				define("ALPHAVANTAGE_KEY", getenv("ALPHAVANTAGE_KEY") ?: "DS3CFQQKWPAV9VIE");
+			}
 
-			// Energy / Agriculture
-			$brent_usd = $bi_values["brent"];
+			function AlphaVantageGlobalQuotes(array $symbols)
+			{
+				// Uses GLOBAL_QUOTE endpoint. Alpha Vantage rate limits apply (free tier).
+				// We cache to avoid hitting limits and to keep the page snappy.
+				$cache_file = __DIR__ . "/cache_alpha_asx_quotes.json";
+				$cache_ttl  = 60 * 5; // 5 minutes
+
+				// Try cache first
+				if (file_exists($cache_file) && (time() - filemtime($cache_file) < $cache_ttl)) {
+					$raw = @file_get_contents($cache_file);
+					$cached = json_decode($raw ?: "", true);
+					if (is_array($cached)) return $cached;
+				}
+
+				$results = [];
+				$mh = curl_multi_init();
+				$handles = [];
+
+				foreach ($symbols as $sym) {
+					$sym = strtoupper(trim($sym));
+					if ($sym === "") continue;
+
+					$url = "https://www.alphavantage.co/query?function=GLOBAL_QUOTE&symbol=" . rawurlencode($sym) . "&apikey=" . rawurlencode(ALPHAVANTAGE_KEY);
+					$ch = curl_init($url);
+					curl_setopt_array($ch, [
+						CURLOPT_RETURNTRANSFER => true,
+						CURLOPT_FOLLOWLOCATION => true,
+						CURLOPT_CONNECTTIMEOUT => 3,
+						CURLOPT_TIMEOUT => 10,
+						CURLOPT_USERAGENT => "Mozilla/5.0 (compatible; Inform/1.0)",
+					]);
+					curl_multi_add_handle($mh, $ch);
+					$handles[] = ["handle" => $ch, "symbol" => $sym];
+				}
+
+				$running = null;
+				do {
+					$status = curl_multi_exec($mh, $running);
+					if ($running) {
+						curl_multi_select($mh, 1.0);
+					}
+				} while ($running && $status == CURLM_OK);
+
+				foreach ($handles as $h) {
+					$ch = $h["handle"];
+					$sym = $h["symbol"];
+					$raw = curl_multi_getcontent($ch);
+					$parsed = json_decode($raw ?: "", true);
+
+					// Alpha Vantage returns "Note" when rate limited
+					if (is_array($parsed) && isset($parsed["Global Quote"]["05. price"])) {
+						$g = $parsed["Global Quote"];
+						$results[$sym] = [
+							"price"  => (float)($g["05. price"] ?? 0),
+							"change" => (float)($g["09. change"] ?? 0),
+							"pct"    => (float)str_replace("%", "", ($g["10. change percent"] ?? "0")),
+							"time"   => ($g["07. latest trading day"] ?? null)
+						];
+					} else {
+						$results[$sym] = [
+							"price"  => null,
+							"change" => null,
+							"pct"    => null,
+							"time"   => null,
+							"_error" => (is_array($parsed) && isset($parsed["Note"])) ? "rate_limited" : "no_data"
+						];
+					}
+
+					curl_multi_remove_handle($mh, $ch);
+					curl_close($ch);
+				}
+				curl_multi_close($mh);
+
+				// If everything failed, try returning stale cache if present
+				$all_bad = true;
+				foreach ($results as $r) {
+					if (!empty($r["price"])) { $all_bad = false; break; }
+				}
+				if ($all_bad && file_exists($cache_file)) {
+					$raw = @file_get_contents($cache_file);
+					$cached = json_decode($raw ?: "", true);
+					if (is_array($cached)) return $cached;
+				}
+
+				@file_put_contents($cache_file, json_encode($results));
+				return $results;
+			}
+			
+			
+			$rate = GetForex("USD");
+			
+			$usdaud = $rate["rate"];
+			
+			$rate = GetForex("EUR");
+			
+			$euraud = $rate["rate"];
+			
+			$rate = GetForex("GBP");
+			
+			$gbpaud = $rate["rate"];
+			
+			$rate = GetForex("CHF");
+			
+			$chfaud = $rate["rate"];
+			
+			$rate = GetForex("CAD");
+			
+			$cadaud = $rate["rate"];
+			
+			$rate = GetForex("NZD");			
+			
+			$nzdaud = $rate["rate"];
+			
+			$rate = GetForex("INR");
+			
+			$inraud = $rate["rate"];
+			
+			$rate = GetForex("RUB");
+			
+			$rubaud = $rate["rate"];
+
+			// ASX (Alpha Vantage) - prices in AUD
+			$asx_symbols = ["EVN.AX","CBA.AX","BHP.AX","RIO.AX","ANZ.AX","WBC.AX","WES.AX"];
+			$asx_names = [
+				"EVN.AX" => "Evolution Mining",
+				"CBA.AX" => "CBA",
+				"BHP.AX" => "BHP",
+				"RIO.AX" => "Rio Tinto",
+				"ANZ.AX" => "ANZ",
+				"WBC.AX" => "Westpac",
+				"WES.AX" => "Wesfarmers"
+			];
+			$asx_quotes = AlphaVantageGlobalQuotes($asx_symbols);			
+			
+			// Crypto
+
+			// BTC_USD
+			$json = CallAPI('GET', 'https://api.diadata.org/v1/assetQuotation/Bitcoin/0x0000000000000000000000000000000000000000', false, false);
+			$diadata_bitcoin = json_decode($json, TRUE);
+			$usd_bitcoin = $diadata_bitcoin["Price"];
+			$aud_bitcoin = $usd_bitcoin / $usdaud;
+
+			//DASH
+			$json = CallAPI('GET', 'https://api.diadata.org/v1/assetQuotation/Dash/0x0000000000000000000000000000000000000000', false, false);
+			$diadata_dash = json_decode($json, TRUE);
+			$usd_dash = $diadata_dash["Price"];
+			$aud_dash = $usd_dash / $usdaud;
+			
+			//ETH
+			$json = CallAPI('GET', 'https://api.diadata.org/v1/assetQuotation/Ethereum/0x0000000000000000000000000000000000000000', false, false);
+			$diadata_ethereum = json_decode($json, TRUE);
+			$usd_ethereum = $diadata_ethereum["Price"];
+			$aud_ethereum = $usd_ethereum / $usdaud;
+			
+			//BCHSV
+			$json        = CallAPI('GET', 'https://api.diadata.org/v1/assetQuotation/BitcoinSV/0x0000000000000000000000000000000000000000', false, false);
+			$diadata_bchsv = json_decode($json, TRUE);
+			$usd_bchsv     = $diadata_bchsv["Price"];
+			$aud_bchsv   = $usd_bchsv / $usdaud;
+			
+			//Solana
+			$json        = CallAPI('GET', 'https://api.diadata.org/v1/assetQuotation/Solana/0x0000000000000000000000000000000000000000', false, false);
+			$diadata_solana = json_decode($json, TRUE);
+			$usd_solana     = $diadata_solana["Price"];
+			$aud_solana   = $usd_solana / $usdaud;	
+			
+			//Monero
+			$json        = CallAPI('GET', 'https://api.diadata.org/v1/assetQuotation/Monero/0x0000000000000000000000000000000000000000', false, false);
+			$diadata_monero = json_decode($json, TRUE);
+			$usd_monero     = $diadata_monero["Price"];
+			$aud_monero   = $usd_monero / $usdaud;			
+			
+			// Precious Metals
+	
+			// Gold
+			$gold = get_commodity_price("gold", "https://markets.businessinsider.com/commodities/gold-price", "//*[@class='price-section__current-value']");
+			$gold_aud = $gold / $usdaud;
+			$gold_aud_out = number_format(floatval($gold_aud), 2, '.', '');
+			
+			// silver
+			$silver = get_commodity_price("silver", "https://markets.businessinsider.com/commodities/silver-price", "//*[@class='price-section__current-value']");
+			$silver_aud = $silver / $usdaud;
+			$silver_aud_out = number_format(floatval($silver_aud), 2, '.', '');
+			
+			// Paladium
+			$paladium = get_commodity_price("paladium", "https://markets.businessinsider.com/commodities/palladium-price", "//*[@class='price-section__current-value']");
+			$paladium_aud = $paladium / $usdaud;
+			$paladium_aud_out = number_format(floatval($paladium_aud), 2, '.', '');
+
+			// Brent Crude
+			$brent_usd = get_commodity_price("brent", "https://markets.businessinsider.com/commodities/oil-price", "//*[@class='price-section__current-value']");
 			$brent_out = number_format(floatval($brent_usd), 2, '.', '');
 
-			$ethanol_usd = $bi_values["ethanol"];
+			// Ethanol
+			$ethanol_usd = get_commodity_price("ethanol", "https://markets.businessinsider.com/commodities/ethanol-price", "//*[@class='price-section__current-value']");
 			$ethanol_out = number_format(floatval($ethanol_usd), 2, '.', '');
 
-			$lean_hog = $bi_values["lean-hog"];
+			// Lean Hog
+			$lean_hog = get_commodity_price("lean-hog", "https://markets.businessinsider.com/commodities/lean-hog-price", "//*[@class='price-section__current-value']");
 			$lean_hog_out = number_format(floatval($lean_hog), 2, '.', '');
 
-			// Stocks
-			$tsla = $bi_values["tsla"];
+			// TSLA
+			$tsla = get_commodity_price("tsla", "https://markets.businessinsider.com/stocks/tsla-stock", "//*[@class='price-section__current-value']");
 			$tsla_out = number_format(floatval($tsla), 2, '.', '');
 
-			$amzn = $bi_values["amzn"];
+			// AMZN
+			$amzn  = get_commodity_price("amzn", "https://markets.businessinsider.com/stocks/amzn-stock", "//*[@class='price-section__current-value']");
+
+			$b = str_replace( ',', '', $amzn );
+
+			if( is_numeric( $b ) ) 
+			{
+				$amzn = $b;
+			}
+			
+			// NVDA
+			$nvda = get_commodity_price("nvda", "https://markets.businessinsider.com/stocks/nvda-stock", "//*[@class='price-section__current-value']");
+			$nvda_out = number_format(floatval($nvda), 2, '.', '');
+			
+			// Assuming $amzn is already defined earlier in your code
 			$amzn_out = number_format(floatval($amzn), 2, '.', '');
 
-			$nvda = $bi_values["nvda"];
-			$nvda_out = number_format(floatval($nvda), 2, '.', '');
-
-			$msft = $bi_values["msft"];
+			// MSFT
+			$msft = get_commodity_price("msft", "https://markets.businessinsider.com/stocks/msft-stock", "//*[@class='price-section__current-value']");
 			$msft_out = number_format(floatval($msft), 2, '.', '');
 
+			echo('			<div id="outer1">' . PHP_EOL);
+
+			// Timezones
 			$time = date("H:i");
 			$time2 = new DateTime($time);
-			echo('			<div id="outer1">' . PHP_EOL);
 			echo('				<div class="box1">'. PHP_EOL);
 			echo('					<h2>World Clock</h2>' . PHP_EOL);
 			echo('					<span class="time"><span class="home">Melbourne</span></span>' . PHP_EOL);
@@ -636,7 +593,7 @@
 
 			// BCHSV
 			echo('<span class="crypto">BCHSV:</span>' . PHP_EOL);
-			echo('<span class="cryptod">' . number_format(floatval($aud_bsv), 2, '.', '') . $four_spaces . '</span>' . PHP_EOL);
+			echo('<span class="cryptod">' . number_format(floatval($aud_bchsv), 2, '.', '') . $four_spaces . '</span>' . PHP_EOL);
 			echo('<br/>' . PHP_EOL);
 			
 			// Solana
@@ -674,13 +631,8 @@
 			echo('					<span class="precious3">$AUD/troy ounce</span>'  . PHP_EOL);
 			echo('					<br/>' . PHP_EOL);
 
-			echo('					<span class="precious1">Platinum:</span>'  . PHP_EOL);
-			echo('					<span class="precious2">' . $platinum_aud_out . '</span>' . PHP_EOL);
-			echo('					<span class="precious3">$AUD/troy ounce</span>'  . PHP_EOL);
-			echo('					<br/>' . PHP_EOL);
-
-			echo('					<span class="precious1">Palladium:</span>'  . PHP_EOL);
-			echo('					<span class="precious2">' . $palladium_aud_out . '</span>' . PHP_EOL);
+			echo('					<span class="precious1">Paladium:</span>'  . PHP_EOL);
+			echo('					<span class="precious2">' . $paladium_aud_out . '</span>' . PHP_EOL);
 			echo('					<span class="precious3">$AUD/troy ounce</span>'  . PHP_EOL);
 			echo('					<br/>' . PHP_EOL);
 
@@ -737,7 +689,6 @@
 			echo('			<div id="outer5">' . PHP_EOL);
 			echo('				<div class="box1">' . PHP_EOL);
 			echo('					<h2>Shares</h2>' . PHP_EOL);
-			echo('					<h3>United States</h3>' . PHP_EOL);
 			echo('					<span class="currency_label">TSLA:</span>' . PHP_EOL);
 			echo('					<span class="currency_data">' . $tsla_out . '</span>' . PHP_EOL);
 			echo('					<span class="currency_label">$US</span>' . PHP_EOL);
@@ -753,9 +704,23 @@
 			echo('					<span class="currency_label">NVDA:</span>' . PHP_EOL);
 			echo('					<span class="currency_data">' . $nvda_out . '</span>' . PHP_EOL);
 			echo('					<span class="currency_label">$US</span>' . PHP_EOL);
-			echo('					<h3>Australia</h3>' . PHP_EOL);
 			echo('					<br/>' . PHP_EOL);
-			echo('				</div>' . PHP_EOL);
+			
+			// --- ASX quotes (AUD) ---
+			echo('					<br/>' . PHP_EOL);
+			echo('					<h3 style="margin:8px 0 4px 0; font-size: 14px;">ASX ($AUD)</h3>' . PHP_EOL);
+
+			foreach ($asx_symbols as $sym) {
+				$q = $asx_quotes[$sym] ?? null;
+				$label = $asx_names[$sym] ?? $sym;
+				$price = (is_array($q) && isset($q["price"]) && $q["price"] !== null) ? number_format((float)$q["price"], 2) : "n/a";
+
+				echo('					<span class="currency_label">' . htmlspecialchars($label) . ':</span>' . PHP_EOL);
+				echo('					<span class="currency_data">' . $price . '</span>' . PHP_EOL);
+				echo('					<span class="currency_label">$AU</span>' . PHP_EOL);
+				echo('					<br/>' . PHP_EOL);
+			}
+echo('				</div>' . PHP_EOL);
 			echo('			</div><!-- end //outer5 -->' . PHP_EOL);
 			echo('			<div id="footer">' . PHP_EOL);
 			echo('			<div class="box2">' . PHP_EOL);
