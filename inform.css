@@ -14,20 +14,17 @@
 #outer3
 {   float: left; 
 	width: 26%;
-	/* border: 5px solid black; */
 }
 
 #outer4
 {   float: left; 
-	width: 14%;
-	/* border: 5px solid black; */
+	width: 14%;	
 }
 
 #outer5
 {
 	float: right; 
 	width: 23%;
-	/* border: 5px solid blue; */
 }
 
 #outer1, #outer2, #outer3, #outer4
@@ -51,14 +48,14 @@ div.box1
 
 div.box2
 {
-	height: 200px;
+	height: 100px;
 	padding: 20px;
 	border-style: groove;
 }
 
 #footer 
 {
-	clear:both;
+	clear: both;
 }
 
 div.graph
@@ -118,7 +115,18 @@ h1
 
 h2
 {
-	/* border: 5px solid black; */
+	text-align: center;
+	margin: 0px;
+	padding-top: 0px;
+	padding-bottom: 5px;
+	margin-left: auto;
+	margin-right: auto;
+	width: 95%;
+	font-family: Arial,Helvetica Neue,Helvetica,sans-serif; 
+}
+
+h3
+{
 	text-align: center;
 	margin: 0px;
 	padding-top: 0px;
