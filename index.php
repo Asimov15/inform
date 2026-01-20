@@ -65,6 +65,8 @@
 				shell_exec($command);
 				$command = "wget --read-timeout=10 --dns-timeout=10 --connect-timeout=10 -q -O " . $file_name . " " . $web_reference;
 				shell_exec($command);
+				$command = "chmod 777 " . $file_name;
+				shell_exec($command);
 				$doc = new DOMDocument();
 				libxml_use_internal_errors(true);
 				if (!$doc->loadHTMLFile($file_name))
