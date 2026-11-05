@@ -12,6 +12,7 @@
 // 21/11/2020 Fix BCH
 // 26/12/2023 Replace money format function with number format 
 //            fix favicon
+// 05/11/2026 Add Platinum
 
 ?>
 <!DOCTYPE html PUBLIC '-//W3C//DTD XHTML 1.0 Strict//EN' 'http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd'>
@@ -229,7 +230,7 @@
 				return $result;
 			}
 
-			$four_spaces = '&nbsp;&nbsp;&nbsp;&nbsp;';
+			$crypto_padding = '&nbsp;';
 
 			// FOREX
 			
@@ -279,102 +280,87 @@
 				];
 			}
 
-			// --- Alpha Vantage (ASX quotes) ---
-			// Set your key as an environment variable ALPHAVANTAGE_KEY, or hardcode below.
-			
-			if (!defined("ALPHAVANTAGE_KEY")) {
-				define("ALPHAVANTAGE_KEY", getenv("ALPHAVANTAGE_KEY") ?: "DS3CFQQKWPAV9VIE");
-			}
-
-			function AlphaVantageGlobalQuotes(array $symbols)
+			// Stock quotes from Yahoo Finance chart JSON (no API key).
+			// Unofficial endpoint: quotes can be delayed or unavailable.
+			function GetStockQuotes(array $symbols)
 			{
-				// Uses GLOBAL_QUOTE endpoint. Alpha Vantage rate limits apply (free tier).
-				// We cache to avoid hitting limits and to keep the page snappy.
-				$cache_file = __DIR__ . "/cache_alpha_asx_quotes.json";
-				$cache_ttl  = 60 * 5; // 5 minutes
-
-				// Try cache first
-				if (file_exists($cache_file) && (time() - filemtime($cache_file) < $cache_ttl)) {
-					$raw = @file_get_contents($cache_file);
-					$cached = json_decode($raw ?: "", true);
-					if (is_array($cached)) return $cached;
+				$cache_file = __DIR__ . "/cache_stock_quotes.json";
+				$cache_ttl = 15 * 60; // 15 minutes
+				$cached = [];
+				if (is_readable($cache_file)) {
+					$data = json_decode((string) @file_get_contents($cache_file), true);
+					if (is_array($data)) $cached = $data;
 				}
 
 				$results = [];
-				$mh = curl_multi_init();
-				$handles = [];
+				$updated = $cached;
+				foreach ($symbols as $symbol) {
+					$symbol = strtoupper(trim($symbol));
+					if ($symbol === '') continue;
+					$entry = $cached[$symbol] ?? null;
+					if (is_array($entry) && isset($entry['price'], $entry['fetched_at']) &&
+						(time() - (int) $entry['fetched_at']) < $cache_ttl) {
+						$results[$symbol] = $entry;
+						continue;
+					}
 
-				foreach ($symbols as $sym) {
-					$sym = strtoupper(trim($sym));
-					if ($sym === "") continue;
-
-					$url = "https://www.alphavantage.co/query?function=GLOBAL_QUOTE&symbol=" . rawurlencode($sym) . "&apikey=" . rawurlencode(ALPHAVANTAGE_KEY);
+					$url = 'https://query1.finance.yahoo.com/v8/finance/chart/' .
+						rawurlencode($symbol) . '?range=1d&interval=1d';
 					$ch = curl_init($url);
 					curl_setopt_array($ch, [
 						CURLOPT_RETURNTRANSFER => true,
 						CURLOPT_FOLLOWLOCATION => true,
 						CURLOPT_CONNECTTIMEOUT => 3,
-						CURLOPT_TIMEOUT => 10,
-						CURLOPT_USERAGENT => "Mozilla/5.0 (compatible; Inform/1.0)",
+						CURLOPT_TIMEOUT => 8,
+						CURLOPT_SSL_VERIFYHOST => 2,
+						CURLOPT_SSL_VERIFYPEER => true,
+						CURLOPT_USERAGENT => 'Mozilla/5.0 (compatible; Inform/1.0)',
+						CURLOPT_HTTPHEADER => ['Accept: application/json'],
 					]);
-					curl_multi_add_handle($mh, $ch);
-					$handles[] = ["handle" => $ch, "symbol" => $sym];
-				}
-
-				$running = null;
-				do {
-					$status = curl_multi_exec($mh, $running);
-					if ($running) {
-						curl_multi_select($mh, 1.0);
-					}
-				} while ($running && $status == CURLM_OK);
-
-				foreach ($handles as $h) {
-					$ch = $h["handle"];
-					$sym = $h["symbol"];
-					$raw = curl_multi_getcontent($ch);
-					$parsed = json_decode($raw ?: "", true);
-
-					// Alpha Vantage returns "Note" when rate limited
-					if (is_array($parsed) && isset($parsed["Global Quote"]["05. price"])) {
-						$g = $parsed["Global Quote"];
-						$results[$sym] = [
-							"price"  => (float)($g["05. price"] ?? 0),
-							"change" => (float)($g["09. change"] ?? 0),
-							"pct"    => (float)str_replace("%", "", ($g["10. change percent"] ?? "0")),
-							"time"   => ($g["07. latest trading day"] ?? null)
-						];
-					} else {
-						$results[$sym] = [
-							"price"  => null,
-							"change" => null,
-							"pct"    => null,
-							"time"   => null,
-							"_error" => (is_array($parsed) && isset($parsed["Note"])) ? "rate_limited" : "no_data"
-						];
-					}
-
-					curl_multi_remove_handle($mh, $ch);
+					$raw = curl_exec($ch);
+					$http_status = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+					$error = curl_error($ch);
 					curl_close($ch);
-				}
-				curl_multi_close($mh);
+					$data = is_string($raw) ? json_decode($raw, true) : null;
+					$chart = $data['chart']['result'][0] ?? null;
+					$meta = is_array($chart) ? ($chart['meta'] ?? []) : [];
+					$price = $meta['regularMarketPrice'] ?? null;
+					if (!is_numeric($price)) {
+						$closes = $chart['indicators']['quote'][0]['close'] ?? [];
+						if (is_array($closes)) {
+							foreach (array_reverse($closes) as $close) {
+								if (is_numeric($close)) { $price = $close; break; }
+							}
+						}
+					}
 
-				// If everything failed, try returning stale cache if present
-				$all_bad = true;
-				foreach ($results as $r) {
-					if (!empty($r["price"])) { $all_bad = false; break; }
+					$expected_currency = substr($symbol, -3) === '.AX' ? 'AUD' : 'USD';
+					$currency = $meta['currency'] ?? null;
+					if ($http_status === 200 && is_numeric($price) && (float)$price > 0 &&
+						$currency === $expected_currency) {
+						$updated[$symbol] = [
+							'price' => (float)$price,
+							'currency' => $currency,
+							'fetched_at' => time(),
+							'market_time' => $meta['regularMarketTime'] ?? null,
+						];
+						$results[$symbol] = $updated[$symbol];
+					} else {
+						error_log('Inform stock quote failed for ' . $symbol .
+							' HTTP=' . $http_status . ' cURL=' . $error .
+							' currency=' . ($currency ?? 'unknown') .
+							' response=' . substr((string)$raw, 0, 180));
+						// Use the last successful value, if one exists; never cache a failure.
+						$results[$symbol] = is_array($entry) && isset($entry['price']) ? $entry :
+							['price' => null, 'currency' => $expected_currency];
+					}
 				}
-				if ($all_bad && file_exists($cache_file)) {
-					$raw = @file_get_contents($cache_file);
-					$cached = json_decode($raw ?: "", true);
-					if (is_array($cached)) return $cached;
+				if ($updated !== $cached) {
+					@file_put_contents($cache_file, json_encode($updated), LOCK_EX);
 				}
-
-				@file_put_contents($cache_file, json_encode($results));
 				return $results;
 			}
-			
-			
+
 			$rate = GetForex("USD");
 			
 			$usdaud = $rate["rate"];
@@ -418,7 +404,9 @@
 				"WBC.AX" => "Westpac",
 				"WES.AX" => "Wesfarmers"
 			];
-			$asx_quotes = AlphaVantageGlobalQuotes($asx_symbols);			
+			$us_symbols = ["TSLA", "AMZN", "MSFT", "NVDA"];
+			$stock_quotes = GetStockQuotes(array_merge($asx_symbols, $us_symbols));
+			$asx_quotes = $stock_quotes;			
 			
 			// Crypto
 
@@ -475,6 +463,11 @@
 			$paladium_aud = $paladium / $usdaud;
 			$paladium_aud_out = number_format(floatval($paladium_aud), 2, '.', '');
 
+			// Platinum
+			$platinum = get_commodity_price("platinum", "https://markets.businessinsider.com/commodities/platinum-price", "//*[@class='price-section__current-value']");
+			$platinum_aud = $platinum / $usdaud;
+			$platinum_aud_out = number_format(floatval($platinum_aud), 2, '.', '');
+
 			// Brent Crude
 			$brent_usd = get_commodity_price("brent", "https://markets.businessinsider.com/commodities/oil-price", "//*[@class='price-section__current-value']");
 			$brent_out = number_format(floatval($brent_usd), 2, '.', '');
@@ -487,30 +480,11 @@
 			$lean_hog = get_commodity_price("lean-hog", "https://markets.businessinsider.com/commodities/lean-hog-price", "//*[@class='price-section__current-value']");
 			$lean_hog_out = number_format(floatval($lean_hog), 2, '.', '');
 
-			// TSLA
-			$tsla = get_commodity_price("tsla", "https://markets.businessinsider.com/stocks/tsla-stock", "//*[@class='price-section__current-value']");
-			$tsla_out = number_format(floatval($tsla), 2, '.', '');
-
-			// AMZN
-			$amzn  = get_commodity_price("amzn", "https://markets.businessinsider.com/stocks/amzn-stock", "//*[@class='price-section__current-value']");
-
-			$b = str_replace( ',', '', $amzn );
-
-			if( is_numeric( $b ) ) 
-			{
-				$amzn = $b;
-			}
-			
-			// NVDA
-			$nvda = get_commodity_price("nvda", "https://markets.businessinsider.com/stocks/nvda-stock", "//*[@class='price-section__current-value']");
-			$nvda_out = number_format(floatval($nvda), 2, '.', '');
-			
-			// Assuming $amzn is already defined earlier in your code
-			$amzn_out = number_format(floatval($amzn), 2, '.', '');
-
-			// MSFT
-			$msft = get_commodity_price("msft", "https://markets.businessinsider.com/stocks/msft-stock", "//*[@class='price-section__current-value']");
-			$msft_out = number_format(floatval($msft), 2, '.', '');
+			// US share prices from the same quote source as ASX shares.
+			$tsla_out = isset($stock_quotes['TSLA']['price']) ? number_format($stock_quotes['TSLA']['price'], 2, '.', '') : 'n/a';
+			$amzn_out = isset($stock_quotes['AMZN']['price']) ? number_format($stock_quotes['AMZN']['price'], 2, '.', '') : 'n/a';
+			$msft_out = isset($stock_quotes['MSFT']['price']) ? number_format($stock_quotes['MSFT']['price'], 2, '.', '') : 'n/a';
+			$nvda_out = isset($stock_quotes['NVDA']['price']) ? number_format($stock_quotes['NVDA']['price'], 2, '.', '') : 'n/a';
 
 			echo('			<div id="outer1">' . PHP_EOL);
 
@@ -520,7 +494,8 @@
 			echo('				<div class="box1">'. PHP_EOL);
 			echo('					<h2>World Clock</h2>' . PHP_EOL);
 			echo('					<span class="time"><span class="home">Melbourne</span></span>' . PHP_EOL);
-			echo('					<span class="timed"><span class="home">' . $time . '</span></span>' . PHP_EOL);
+			$time2 = $time2->setTimeZone(new DateTimeZone("Australia/Melbourne"));
+			echo('					<span class="timed"><span class="home">' . $time2->format("H:i") . '</span></span>' . PHP_EOL);
 			echo('					<br/>' . PHP_EOL);
 
 			echo('					<span class="time">Jakata</span>' . PHP_EOL);
@@ -580,32 +555,32 @@
 
 			// BTC
 			echo('<span class="crypto">BTC:</span>' . PHP_EOL);
-			echo('<span class="cryptod">' . number_format(floatval($aud_bitcoin), 2, '.', '') . $four_spaces . '</span>' . PHP_EOL);
+			echo('<span class="cryptod">' . number_format(floatval($aud_bitcoin), 2, '.', '') . $crypto_padding . '</span>' . PHP_EOL);
 			echo('<br/>' . PHP_EOL);
 
 			// DASH
 			echo('<span class="crypto">DASH:</span>' . PHP_EOL);
-			echo('<span class="cryptod">' . number_format(floatval($aud_dash), 2, '.', '') . $four_spaces . '</span>' . PHP_EOL);
+			echo('<span class="cryptod">' . number_format(floatval($aud_dash), 2, '.', '') . $crypto_padding . '</span>' . PHP_EOL);
 			echo('<br/>' . PHP_EOL);
 
 			// ETH
 			echo('<span class="crypto">ETH:</span>' . PHP_EOL);
-			echo('<span class="cryptod">' . number_format(floatval($aud_ethereum), 2, '.', '') . $four_spaces . '</span>' . PHP_EOL);
+			echo('<span class="cryptod">' . number_format(floatval($aud_ethereum), 2, '.', '') . $crypto_padding . '</span>' . PHP_EOL);
 			echo('<br/>' . PHP_EOL);
 
 			// BCHSV
 			echo('<span class="crypto">BCHSV:</span>' . PHP_EOL);
-			echo('<span class="cryptod">' . number_format(floatval($aud_bchsv), 2, '.', '') . $four_spaces . '</span>' . PHP_EOL);
+			echo('<span class="cryptod">' . number_format(floatval($aud_bchsv), 2, '.', '') . $crypto_padding . '</span>' . PHP_EOL);
 			echo('<br/>' . PHP_EOL);
 			
 			// Solana
 			echo('<span class="crypto">Solana:</span>' . PHP_EOL);
-			echo('<span class="cryptod">' . number_format(floatval($aud_solana), 2, '.', '') . $four_spaces . '</span>' . PHP_EOL);
+			echo('<span class="cryptod">' . number_format(floatval($aud_solana), 2, '.', '') . $crypto_padding . '</span>' . PHP_EOL);
 			echo('<br/>' . PHP_EOL);
 			
 			// Monero
 			echo('<span class="crypto">Monero:</span>' . PHP_EOL);
-			echo('<span class="cryptod">' . number_format(floatval($aud_monero), 2, '.', '') . $four_spaces . '</span>' . PHP_EOL);
+			echo('<span class="cryptod">' . number_format(floatval($aud_monero), 2, '.', '') . $crypto_padding . '</span>' . PHP_EOL);
 			echo('<br/>' . PHP_EOL);
 
 			echo('				</div><!-- end box1 -->' . PHP_EOL);
@@ -637,6 +612,12 @@
 			echo('					<span class="precious2">' . $paladium_aud_out . '</span>' . PHP_EOL);
 			echo('					<span class="precious3">$AUD/troy ounce</span>'  . PHP_EOL);
 			echo('					<br/>' . PHP_EOL);
+
+			// Platinum
+			echo('                    <span class="precious1">Platinum:</span>' . PHP_EOL);
+			echo('                    <span class="precious2">' . $platinum_aud_out . '</span>' . PHP_EOL);
+			echo('                    <span class="precious3">$AUD/troy ounce</span>' . PHP_EOL);
+			echo('                    <br/>' . PHP_EOL);
 
 			echo('					<span class="precious1">Brent Crude: </span>' . PHP_EOL);
 			echo('					<span class="precious2">' . $brent_out . '</span>' . PHP_EOL);
@@ -691,19 +672,19 @@
 			echo('			<div id="outer5">' . PHP_EOL);
 			echo('				<div class="box1">' . PHP_EOL);
 			echo('					<h2>Shares</h2>' . PHP_EOL);
-			echo('					<span class="currency_label">TSLA:</span>' . PHP_EOL);
+			echo('					<span class="stock_label">TSLA:</span>' . PHP_EOL);
 			echo('					<span class="currency_data">' . $tsla_out . '</span>' . PHP_EOL);
 			echo('					<span class="currency_label">$US</span>' . PHP_EOL);
 			echo('					<br/>' . PHP_EOL);
-			echo('					<span class="currency_label">AMZN:</span>' . PHP_EOL);
+			echo('					<span class="stock_label">AMZN:</span>' . PHP_EOL);
 			echo('					<span class="currency_data">' . $amzn_out . '</span>' . PHP_EOL);
 			echo('					<span class="currency_label">$US</span>' . PHP_EOL);
 			echo('					<br/>' . PHP_EOL);
-			echo('					<span class="currency_label">MSFT:</span>' . PHP_EOL);
+			echo('					<span class="stock_label">MSFT:</span>' . PHP_EOL);
 			echo('					<span class="currency_data">' . $msft_out . '</span>' . PHP_EOL);
 			echo('					<span class="currency_label">$US</span>' . PHP_EOL);
 			echo('					<br/>' . PHP_EOL);
-			echo('					<span class="currency_label">NVDA:</span>' . PHP_EOL);
+			echo('					<span class="stock_label">NVDA:</span>' . PHP_EOL);
 			echo('					<span class="currency_data">' . $nvda_out . '</span>' . PHP_EOL);
 			echo('					<span class="currency_label">$US</span>' . PHP_EOL);
 			echo('					<br/>' . PHP_EOL);
@@ -712,12 +693,13 @@
 			echo('					<br/>' . PHP_EOL);
 			echo('					<h3 style="margin:8px 0 4px 0; font-size: 14px;">ASX ($AUD)</h3>' . PHP_EOL);
 
-			foreach ($asx_symbols as $sym) {
+			foreach ($asx_symbols as $sym) 
+			{
 				$q = $asx_quotes[$sym] ?? null;
 				$label = $asx_names[$sym] ?? $sym;
 				$price = (is_array($q) && isset($q["price"]) && $q["price"] !== null) ? number_format((float)$q["price"], 2) : "n/a";
 
-				echo('					<span class="currency_label">' . htmlspecialchars($label) . ':</span>' . PHP_EOL);
+				echo('					<span class="stock_label">' . htmlspecialchars($label) . ':</span>' . PHP_EOL);
 				echo('					<span class="currency_data">' . $price . '</span>' . PHP_EOL);
 				echo('					<span class="currency_label">$AU</span>' . PHP_EOL);
 				echo('					<br/>' . PHP_EOL);
